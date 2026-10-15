@@ -1,0 +1,11 @@
+# Packaged releases are published through GitHub Releases.
+/releases/*.zip
+
+# Local account and upload screenshots.
+/releases/*.png
+
+# Editor and operating-system files.
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
