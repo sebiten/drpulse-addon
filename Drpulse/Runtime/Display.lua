@@ -612,7 +612,7 @@ local function RefreshTarget(now)
     local db = ns.db
     local entries, guid
     local sampling = false
-    if db.target then
+    if db.target and (ns.VisibilityAllowed() or now < previewUntil or not db.locked) then
         guid = ns.ReadEnemy("target")
         entries = Filter(ns.tracker:Snapshot(guid, now))
         if not entries and (now < previewUntil or not db.locked) then
@@ -672,13 +672,14 @@ end
 local function RefreshPlates(now)
     local any = false
     local watched = ns.WatchedUnits()
+    local visible = ns.db.nameplates and ns.db.enabled and ns.VisibilityAllowed()
     for unit in pairs(plates) do
-        if not watched[unit] or not ns.db.nameplates or not ns.db.enabled then ReleasePlate(unit) end
+        if not watched[unit] or not visible then ReleasePlate(unit) end
     end
-    if not ns.db.nameplates or not ns.db.enabled then return false end
+    if not visible then return false end
     for unit in pairs(watched) do
         if unit:match("^nameplate%d+$") then
-            local guid = ns.ReadEnemy(unit)
+            local guid = ns.NameplateAllowed(unit) and ns.ReadEnemy(unit)
             local entries = guid and Filter(ns.tracker:Snapshot(guid, now))
             if entries then
                 local row = PlateRow(unit)
@@ -712,7 +713,7 @@ function Refresh()
     end
     local shown = RefreshTarget(now)
     local plateShown = RefreshPlates(now)
-    local live = shown or plateShown or ns.tracker:HasLive(now) or now < previewUntil
+    local live = shown or plateShown or (ns.VisibilityAllowed() and ns.tracker:HasLive(now)) or now < previewUntil
     if not live then ns.tracker:Prune(now) end
     -- Timers tick only while something is on screen or still counting down.
     live = not not live

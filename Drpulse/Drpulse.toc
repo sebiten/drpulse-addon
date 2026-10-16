@@ -22,5 +22,6 @@ Runtime\Preview.lua
 Runtime\Settings.lua
 Runtime\Integration.lua
 Runtime\Profiles.lua
+Runtime\Visibility.lua
 Minimap.lua
 Runtime\Lifecycle.lua

@@ -79,6 +79,7 @@ events:SetScript("OnEvent", function(self, event, name)
         SlashCmdList.DRPULSE = Command
         if paused or not ns.db then return end
         ns.StartProfiles()
+        ns.StartVisibility()
         ns.StartDisplay()
         ns.StartSources()
         ns.BuildSettings()

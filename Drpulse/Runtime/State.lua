@@ -51,6 +51,7 @@ local defaults = {
     stackStyle = "pips", timer = true, swipe = true, iconSource = "spell",
     plateFont = "default", plateStackStyle = "pips", plateTimer = true, plateSwipe = true, plateIconSource = "spell",
     chat = true,
+    combatOnly = false, pvpOnly = false, plateTargetOnly = false,
 }
 -- Options with a fixed range or value set. Colors are fixed by meaning.
 local rules = {

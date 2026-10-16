@@ -15,6 +15,8 @@ local function environment(supported)
     UnitGUID = function(unit) return units[unit] end
     UnitName = function() return "Enemy", "Realm" end
     InCombatLockdown = function() return false end
+    IsInInstance = function() return false, "none" end
+    UnitIsUnit = function(a, b) return units[a] ~= nil and units[a] == units[b] end
     C_Timer = { After = function(delay, callback) tasks[#tasks + 1] = { at = clock + delay, run = callback } end }
     C_Secrets = { ShouldSpellAuraBeSecret = function() return spellSecret end }
     C_UnitAuras = { GetUnitAuraBySpellID = function(_, id) return auraByID[id] end }
@@ -146,7 +148,7 @@ assert(ns.LoadDrpulseSettings({ schema = 999 }) == nil)
 print("PASS legacy migration, reload, and unsupported schema preservation")
 for _, file in ipairs(TocModules) do assert(loadfile(file)) end
 environment(false)
-SlashCmdList, DrpulseV2DB, Minimap = {}, nil, nil
+SlashCmdList, DrpulseV2DB, DrpulseProfilesDB, Minimap = {}, nil, nil, nil
 local product, loaded = {}, {}
 for _, file in ipairs(TocModules) do
     if not loaded[file] then
