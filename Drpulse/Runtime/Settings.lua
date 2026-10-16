@@ -48,7 +48,7 @@ local SECTION_OF = {
     Displays = "general", ["What to show"] = "general",
     Categories = "appearance", ["Size and placement"] = "appearance", ["Icon style"] = "appearance",
     ["Tracking sources"] = "detection", ["Blizzard data"] = "detection",
-    ["Custom spells"] = "tools", Advanced = "tools", Diagnostics = "tools",
+    Profiles = "tools", ["Custom spells"] = "tools", Advanced = "tools", Diagnostics = "tools",
     [HELP] = "guide",
 }
 
@@ -549,6 +549,21 @@ local function NewPage(name)
         local function Track(setting)
             if setting.key then row.keys[#row.keys + 1] = setting.key end
             return setting
+        end
+        function row:Input(x, width, maxLetters)
+            local edit = Keep(CreateFrame("EditBox", nil, frame, "BackdropTemplate"))
+            edit:SetPoint("TOPLEFT", x, -2)
+            edit:SetSize(width or CW, 26)
+            edit:SetBackdrop(backdrop)
+            edit:SetBackdropColor(0.035, 0.055, 0.075, 1)
+            edit:SetBackdropBorderColor(0.14, 0.20, 0.25, 1)
+            edit:SetFontObject("GameFontHighlightSmall")
+            edit:SetTextInsets(8, 8, 0, 0)
+            edit:SetAutoFocus(false)
+            edit:SetMaxLetters(maxLetters or 48)
+            edit:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+            edit:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+            return edit
         end
         -- On or Off; a click switches.
         function row:Toggle(x, key, width)
@@ -1375,6 +1390,31 @@ local function Build()
         :Toggle(C1, "timer")
     page.Row("Countdown swipe", TIPS.swipe, "swipe")
         :Toggle(C1, "swipe")
+
+    page.Group("Profiles", false, function() return ns.ActiveProfile() end,
+        "Profiles are shared across this account. Each character remembers its selection. Copy a profile to customize it independently.")
+    local profileOptions, profileLabels = {}, {}
+    page.OnRefresh(function()
+        for index = #profileOptions, 1, -1 do profileOptions[index] = nil end
+        for _, name in ipairs(ns.ProfileNames()) do
+            profileOptions[#profileOptions + 1] = name
+            profileLabels[name] = name
+        end
+    end)
+    local function ProfileResult(ok, problem)
+        if not ok then ns.Print(problem or "Profile operation failed.") end
+        page.Refresh()
+    end
+    page.Row("Active profile", "Choose a saved profile from any character. Editing a shared profile changes it for every character using it.")
+        :Choice(C1, { options = profileOptions, dropdown = true, get = ns.ActiveProfile,
+            set = function(value) ProfileResult(ns.SelectProfile(value)) end }, profileLabels, WIDE)
+    page.Row("Switch with specialization", "Remember a profile for each specialization or talent group on this character. Select a profile while that specialization is active. Unassigned specializations use the character's main profile. Changes wait until combat ends.")
+        :Toggle(C1, { get = ns.AutoSpecProfiles, set = function(value) ProfileResult(ns.SetAutoSpecProfiles(value)) end })
+    local newProfile = page.Row("New profile name", "Copy the active profile into a new independent profile. Names must be unique, up to 48 characters.")
+    local profileName = newProfile:Input(C1, WIDE)
+    local profileActions = page.Row("Create profile", "Copy current preserves your settings. Use defaults creates a fresh profile. Both select the new profile for this character or specialization.")
+    profileActions:Button(C1, "Copy current", function() ProfileResult(ns.CreateProfile(profileName:GetText())) end)
+    profileActions:Button(C2, "Use defaults", function() ProfileResult(ns.CreateProfile(profileName:GetText(), ns.LoadSettings(nil))) end)
 
     page.Group("Custom spells", false, function()
         local count = 0

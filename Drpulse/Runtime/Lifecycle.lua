@@ -78,6 +78,7 @@ events:SetScript("OnEvent", function(self, event, name)
         SLASH_DRPULSE2 = nil
         SlashCmdList.DRPULSE = Command
         if paused or not ns.db then return end
+        ns.StartProfiles()
         ns.StartDisplay()
         ns.StartSources()
         ns.BuildSettings()

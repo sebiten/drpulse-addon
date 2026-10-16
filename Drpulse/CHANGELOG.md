@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Add account-wide named profiles, per-character selection, optional specialization/talent-group bindings and independent profile copies under Tools.
+
 ## 2.0.0-beta.8 - October 16, 2026
 
 - Skip unchanged icon textures, text, colors, sizes and anchors during display updates.

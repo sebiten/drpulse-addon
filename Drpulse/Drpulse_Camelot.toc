@@ -3,7 +3,7 @@
 ## Notes: Modern diminishing returns tracking for WoW: Forever.
 ## Author: Joaqoz
 ## Version: 2.0.0-beta.8
-## SavedVariables: DrpulseV2DB, DrpulseDB, DRiftDB
+## SavedVariables: DrpulseV2DB, DrpulseDB, DRiftDB, DrpulseProfilesDB
 ## IconTexture: Interface\Icons\Spell_Frost_FrostNova
 ## Category: PvP
 ## X-Category: PvP
@@ -21,6 +21,7 @@ Runtime\Display.lua
 Runtime\Preview.lua
 Runtime\Settings.lua
 Runtime\Integration.lua
+Runtime\Profiles.lua
 Minimap.lua
 Runtime\Lifecycle.lua
 

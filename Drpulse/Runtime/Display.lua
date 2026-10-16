@@ -741,6 +741,12 @@ function ns.Preview(seconds)
     ns.RequestRefresh()
 end
 
+function ns.FinishDisplayInteraction()
+    if not target then return end
+    StopMove()
+    if target.grip.drag then StopGrip(target.grip) end
+end
+
 function ns.StartDisplay()
     redColor = CreateColor(STAGE[3][1], STAGE[3][2], STAGE[3][3], 1)
     stageColors = {}

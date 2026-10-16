@@ -178,6 +178,24 @@ function ns.OnSettingChanged(callback) listeners[#listeners + 1] = callback end
 local function Changed(key)
     for _, callback in ipairs(listeners) do callback(key) end
 end
+ns.NotifySettingsChanged = Changed
+
+-- Portable settings only: no learned durations, UI state or character identity.
+function ns.ProfileData(db)
+    local result = { schema = ns.SCHEMA, sources = {}, categories = {}, custom = {} }
+    for key, default in pairs(defaults) do
+        result[key] = db[key] == nil and default or db[key]
+    end
+    for key, default in pairs(sources) do
+        local value = db.sources and db.sources[key]
+        result.sources[key] = value == nil and default or value
+    end
+    for key, value in pairs(db.categories or {}) do if isCategory[key] then result.categories[key] = value end end
+    for key, value in pairs(db.custom or {}) do result.custom[key] = value end
+    local minimap = db.profile and db.profile.minimap
+    if minimap then result.profile = { minimap = { hide = minimap.hide, angle = minimap.angle } } end
+    return result
+end
 
 function ns.Get(key) return ns.db and ns.db[key] end
 -- A setting's default, for the settings page's reset arrows.
