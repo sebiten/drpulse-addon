@@ -114,6 +114,22 @@ local function suite(path, optimized)
     assert(icon.cooldown.counts.Pause == 1)
     draw(40)
     assert(icon.cooldown.counts.Resume == 1)
+    if optimized then
+        ns.db.plateTimer, ns.db.plateSwipe, ns.db.plateFont = false, false, "skurri"
+        ns.db.plateStackStyle, ns.db.plateIconSource = "number", "category"
+        local plateIcons = frame()
+        ns.LayoutRow(plateIcons, { e }, 20, nil, false, false, "nameplates")
+        local plateIcon = plateIcons.icons[1]
+        assert(not plateIcon.time.shown and plateIcon.swipeStart == nil)
+        assert(plateIcon.count.shown and plateIcon.time.font == ns.FONT_PATHS.skurri)
+        assert(plateIcon.texture.SetTextureArgs[1] == 999)
+        draw(40)
+        assert(icon.time.shown and icon.time.font == ns.FONT_PATHS.arial and icon.next.shown)
+        ns.ResetDisplaySettings()
+        assert(ns.db.plateTimer and ns.db.plateSwipe and ns.db.plateFont == "default")
+        local migrated = assert(ns.LoadSettings({ schema = 1, font = "arial", timer = false, swipe = false, stackStyle = "next" }))
+        assert(migrated.plateFont == "arial" and not migrated.plateTimer and not migrated.plateSwipe and migrated.plateStackStyle == "next")
+    end
     print("PASS display transitions, pooling, fonts, offsets, secret border and preview: " .. path)
     return steady
 end

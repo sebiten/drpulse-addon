@@ -49,6 +49,7 @@ local defaults = {
     iconSize = 30, plateSize = 20, plateOffset = 4, plateAnchor = "TOP", plateX = 0, plateY = 0,
     font = "default",
     stackStyle = "pips", timer = true, swipe = true, iconSource = "spell",
+    plateFont = "default", plateStackStyle = "pips", plateTimer = true, plateSwipe = true, plateIconSource = "spell",
     chat = true,
 }
 -- Options with a fixed range or value set. Colors are fixed by meaning.
@@ -60,6 +61,8 @@ local rules = {
     filter = { mine = true, all = true }, plateAnchor = { TOP = true, BOTTOM = true },
     stackStyle = { pips = true, number = true, next = true }, iconSource = { spell = true, category = true },
 }
+local plateStyleKeys = { plateFont = "font", plateStackStyle = "stackStyle", plateTimer = "timer", plateSwipe = "swipe", plateIconSource = "iconSource" }
+for plateKey, targetKey in pairs(plateStyleKeys) do rules[plateKey] = rules[targetKey] end
 ns.LIMITS = rules
 ns.FONT_PATHS = {
     friz = "Fonts\\FRIZQT__.TTF", arial = "Fonts\\ARIALN.TTF",
@@ -156,6 +159,13 @@ function ns.LoadSettings(saved)
     if saved == nil then return Fresh() end
     local problem = Check(saved)
     if problem then return nil, problem end
+    -- Older profiles used one style for both surfaces. Preserve it on migration.
+    for plateKey, targetKey in pairs(plateStyleKeys) do
+        if saved[plateKey] == nil then
+            saved[plateKey] = saved[targetKey]
+            if saved[plateKey] == nil then saved[plateKey] = defaults[targetKey] end
+        end
+    end
     for key, value in pairs(defaults) do if saved[key] == nil then saved[key] = value end end
     saved.sources = saved.sources or {}
     for key, value in pairs(sources) do if saved.sources[key] == nil then saved.sources[key] = value end end
@@ -185,6 +195,9 @@ function ns.ProfileData(db)
     local result = { schema = ns.SCHEMA, sources = {}, categories = {}, custom = {} }
     for key, default in pairs(defaults) do
         result[key] = db[key] == nil and default or db[key]
+    end
+    for plateKey, targetKey in pairs(plateStyleKeys) do
+        if db[plateKey] == nil then result[plateKey] = result[targetKey] end
     end
     for key, default in pairs(sources) do
         local value = db.sources and db.sources[key]
@@ -262,7 +275,15 @@ function ns.ResetDisplaySettings()
     for _, key in ipairs({ "iconSize", "plateSize", "plateOffset", "plateAnchor", "plateX", "plateY", "font", "stackStyle", "timer", "swipe", "iconSource" }) do
         ns.db[key] = defaults[key]
     end
+    for key in pairs(plateStyleKeys) do ns.db[key] = defaults[key] end
     Changed("appearance")
+end
+
+local plateStyle = {}
+function ns.DisplayStyle(surface)
+    if surface ~= "nameplates" then return ns.db end
+    for plateKey, targetKey in pairs(plateStyleKeys) do plateStyle[targetKey] = ns.db[plateKey] end
+    return plateStyle
 end
 function ns.ResetPosition()
     if not ns.db then return end

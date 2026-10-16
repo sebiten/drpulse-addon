@@ -60,6 +60,7 @@ local CHOICES = {
     iconSource = { "spell", "category" },
 }
 local MODES = { "auto", "always", "never" }
+CHOICES.plateFont, CHOICES.plateStackStyle, CHOICES.plateIconSource = CHOICES.font, CHOICES.stackStyle, CHOICES.iconSource
 local MODE_LABELS = { auto = "Auto", always = "Always", never = "Never" }
 
 -- Widgets -----------------------------------------------------------------------
@@ -963,7 +964,7 @@ local function DisplayPreview(page, key, unconfirmed)
         local db = ns.db
         local entries, cast = ns.SettingsSamples(now, (not still) and started or nil)
         ns.LayoutRow(target, entries, db.iconSize, nil, false, still)
-        ns.LayoutRow(plateRow, entries, db.plateSize, nil, false, still)
+        ns.LayoutRow(plateRow, entries, db.plateSize, nil, false, still, "nameplates")
         if extra then
             ns.LayoutRow(extra, (cast and ns.GetSource("assume")) and { cast } or nil, db.iconSize, nil, false, still)
         end
@@ -1025,8 +1026,9 @@ local function DisplayPreview(page, key, unconfirmed)
         end), target
     end
     preview.parts.swipe = function()
-        if not ns.db.swipe then return {}, target end
-        return Each(function(icon, regions) regions[#regions + 1] = icon.cooldown end), target
+        return Each(function(icon, regions)
+            if icon.swipeStart then regions[#regions + 1] = icon.cooldown end
+        end), target
     end
 
     page.OnRefresh(function()
@@ -1380,16 +1382,24 @@ local function Build()
             .. (ns.db.timer and " · timer" or " · no timer") .. (ns.db.swipe and " · swipe" or "")
     end, "What each icon shows: its stacks, its picture, the reset timer and the swipe, with a preview at the top that follows every change here.")
     DisplayPreview(page, "style", true)
-    page.Row("Icon font", "Font for timer, application count and next-CC text on the target and nameplates. Game default restores the client's font; unavailable fonts fall back to it.", "font")
-        :Choice(C1, "font", ns.FONT_LABELS)
-    page.Row("Stacks", TIPS.stackStyle, "stacks")
-        :Choice(C1, "stackStyle", STACK_LABELS)
-    page.Row("Icon", TIPS.iconSource, "picture")
-        :Choice(C1, "iconSource", ICON_LABELS)
-    page.Row("Reset timer text", TIPS.timer, "timer")
-        :Toggle(C1, "timer")
-    page.Row("Countdown swipe", TIPS.swipe, "swipe")
-        :Toggle(C1, "swipe")
+    local columns = page.Row("Configure independently", "The left column changes the target display; the right column changes enemy nameplates.")
+    columns:Status(function() return "TARGET" end, C1, CW)
+    columns:Status(function() return "NAMEPLATES" end, C2, CW)
+    local fonts = page.Row("Icon font", "Choose fonts independently for the target and nameplates. Unavailable fonts fall back to the client's default.", "font")
+    fonts:Choice(C1, "font", ns.FONT_LABELS)
+    fonts:Choice(C2, "plateFont", ns.FONT_LABELS)
+    local stacks = page.Row("Stacks", TIPS.stackStyle, "stacks")
+    stacks:Choice(C1, "stackStyle", STACK_LABELS)
+    stacks:Choice(C2, "plateStackStyle", STACK_LABELS)
+    local picture = page.Row("Icon", TIPS.iconSource, "picture")
+    picture:Choice(C1, "iconSource", ICON_LABELS)
+    picture:Choice(C2, "plateIconSource", ICON_LABELS)
+    local timers = page.Row("Reset timer text", TIPS.timer, "timer")
+    timers:Toggle(C1, "timer")
+    timers:Toggle(C2, "plateTimer")
+    local swipes = page.Row("Countdown swipe", TIPS.swipe, "swipe")
+    swipes:Toggle(C1, "swipe")
+    swipes:Toggle(C2, "plateSwipe")
 
     page.Group("Profiles", false, function() return ns.ActiveProfile() end,
         "Profiles are shared across this account. Each character remembers its selection. Copy a profile to customize it independently.")

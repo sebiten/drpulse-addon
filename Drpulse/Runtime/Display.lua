@@ -94,10 +94,10 @@ local function NewIcon(parent, tooltips)
     return icon
 end
 
-local function StyleIcon(icon, size)
+local function StyleIcon(icon, size, fontKey)
     icon:SetSize(size, size)
     icon.defaultFont = icon.defaultFont or icon.time:GetFont()
-    local font = ns.FONT_PATHS[ns.db.font] or icon.defaultFont
+    local font = ns.FONT_PATHS[fontKey] or icon.defaultFont
     local timeSize = math.max(8, math.floor(size * 0.42))
     local smallSize = math.max(7, math.floor(size * 0.3))
     for _, region in ipairs({ icon.time, icon.count, icon.next }) do
@@ -127,14 +127,13 @@ end
 -- Blizzard's CooldownFrame_SetDisplayAsPercentage (Blizzard_FrameXMLUtil/
 -- Cooldown.lua) does; a live draw resumes first, so a live swipe never stays
 -- frozen in a pooled icon.
-local function UpdateIcon(icon, e, guid, still)
+local function UpdateIcon(icon, e, guid, still, db)
     icon.entry = e
     still = still == true
     if (icon.still == true) ~= still then
         if still then icon.cooldown:Pause() else icon.cooldown:Resume() end
         icon.still = still
     end
-    local db = ns.db
     local icons = db.iconSource == "spell" and e.spellID and ns.SpellIcon(e.spellID)
     local texture = icons or ns.CategoryIcon(e.category)
     if icon.textureValue ~= texture then
@@ -208,22 +207,23 @@ local function Filter(list)
     return count > 0 and list or nil
 end
 
-local function LayoutRow(row, entries, size, guid, tooltips, still)
+local function LayoutRow(row, entries, size, guid, tooltips, still, surface)
+    local style = ns.DisplayStyle(surface)
     row.icons = row.icons or {}
     local count = entries and #entries or 0
     for index = 1, count do
         local icon = row.icons[index]
         if not icon then icon = NewIcon(row, tooltips); row.icons[index] = icon end
-        if icon.size ~= size or icon.font ~= ns.db.font then
-            StyleIcon(icon, size)
-            icon.size, icon.font = size, ns.db.font
+        if icon.size ~= size or icon.font ~= style.font then
+            StyleIcon(icon, size, style.font)
+            icon.size, icon.font = size, style.font
         end
         if icon.layoutSize ~= size then
             icon:ClearAllPoints()
             icon:SetPoint("LEFT", row, "LEFT", (index - 1) * (size + SPACING), 0)
             icon.layoutSize = size
         end
-        UpdateIcon(icon, entries[index], guid, still)
+        UpdateIcon(icon, entries[index], guid, still, style)
     end
     for index = count + 1, row.drawnCount or 0 do row.icons[index]:Hide(); row.icons[index].entry = nil end
     if row.drawnCount ~= count or row.iconSize ~= size then
@@ -683,7 +683,7 @@ local function RefreshPlates(now)
             if entries then
                 local row = PlateRow(unit)
                 if row then
-                    LayoutRow(row, entries, ns.db.plateSize, guid, false)
+                    LayoutRow(row, entries, ns.db.plateSize, guid, false, false, "nameplates")
                     PlaceRow(row, row.plate)
                     row:Show()
                     any = true
