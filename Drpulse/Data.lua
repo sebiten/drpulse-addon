@@ -52,6 +52,34 @@ ns.SPELLS = {
     [355] = 1, [6795] = 1, [62124] = 1,
 }
 
+-- Additional effect IDs present in the Forever reference catalog. Categories
+-- remain provisional; native evidence and custom overrides take precedence.
+local extraSpells = {
+    [2] = { 6798, 8983, 9005, 9823, 9827, 20614, 20615, 12809, 19577,
+        15269, 5530, 835, 4065, 4066, 4067, 4068, 4069, 12543, 19769, 19784, 22641, 13327 },
+    [4] = { 2070, 11297, 1777, 8629, 11285, 11286, 14308, 14309, 18657, 18658,
+        9484, 9485, 10955, 24132, 24133, 6789, 17925, 17926, 19503 },
+    [5] = { 17928, 8124, 10888, 10890, 20511, 605, 10911, 10912, 13180, 13181, 5134 },
+    [6] = { 24259, 18425, 18498, 19821 },
+    [0] = { 19970, 19971, 19972, 19973, 19974, 19975, 12494, 19185, 19306, 20909, 20910, 13099, 13120 },
+    [1] = { 694, 7400, 7402, 20559, 20560, 1161, 5209 },
+}
+for category, ids in pairs(extraSpells) do
+    for _, id in ipairs(ids) do ns.SPELLS[id] = category end
+end
+
+-- Only direct, single-target CC casts may identify an otherwise opaque event.
+-- Procs, ground traps and area effects cannot identify the affected enemy.
+ns.DIRECT_CC = {}
+for _, id in ipairs({ 408, 8643, 1833, 853, 5588, 5589, 10308, 5211, 6798, 8983,
+    9005, 9823, 9827, 12809, 118, 12824, 12825, 12826, 28271, 28272,
+    6770, 2070, 11297, 1776, 1777, 8629, 11285, 11286, 20066, 2637, 18657,
+    18658, 9484, 9485, 10955, 19386, 24132, 24133, 6789, 17925, 17926,
+    19503, 5782, 6213, 6215, 6358, 2094, 605, 10911, 10912, 15487,
+    339, 1062, 5195, 5196, 9852, 9853, 19306, 20909, 20910, 676, 14251 }) do
+    ns.DIRECT_CC[id] = true
+end
+
 ns.DEFAULTS = {
     profile = {
         enabled = true,

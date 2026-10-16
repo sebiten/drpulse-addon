@@ -2,7 +2,7 @@
 
 Drpulse muestra el estado de diminishing returns de enemigos en una interfaz limpia, legible y diseñada desde cero para Forever.
 
-**Versión 1.0.8: saludo al iniciar sesión; pendiente de validación dentro del cliente Forever.**
+**Versión 1.0.13: lectura por hechizo, eventos nativos parciales y correlación estimada de CC directo; 95 pruebas offline aprobadas, pendiente de validación dentro de Forever.**
 
 ### Lo importante, de un vistazo
 

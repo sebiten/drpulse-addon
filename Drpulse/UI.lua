@@ -117,7 +117,7 @@ function UI:RenderBar(bar, unit)
     for _, category in ipairs(ns.CATEGORY_ORDER) do
         local entry = state and state.categories[category]
         local enabled = ns.db.profile.categories[category]
-        local show = enabled and entry and not (state.auraRestricted and entry.source ~= "Blizzard")
+        local show = enabled and entry
             and (entry.active or (entry.resetAt and entry.resetAt > timestamp))
         local icon = bar.icons[category]
         if show then
@@ -126,7 +126,7 @@ function UI:RenderBar(bar, unit)
                 bar.icons[category] = icon
             end
             local info = ns:GetCategoryInfo(category)
-            local stage = entry.applications and math.min(entry.applications, ns.db.profile.applicationsToImmune)
+            local stage = not entry.countUnknown and entry.applications and math.min(entry.applications, ns.db.profile.applicationsToImmune)
             local color = stage and (BORDER[stage] or BORDER[3]) or { 0.58, 0.62, 0.68 }
             icon:SetBackdropBorderColor(color[1], color[2], color[3], 1)
             local texture
@@ -134,10 +134,10 @@ function UI:RenderBar(bar, unit)
                 texture = ns:Readable(C_Spell.GetSpellTexture(entry.spellID))
             end
             icon.texture:SetTexture(texture or info.icon)
-            icon.timer:SetText(ns.db.profile.showText and (entry.active and "CC" or formatTime(remaining(entry))) or "")
+            icon.timer:SetText(ns.db.profile.showText and ((entry.auraUncertain or entry.timerUnknown) and "?" or (entry.active and "CC" or formatTime(remaining(entry)))) or "")
             icon.stage:SetText(not stage and "?" or (stage >= ns.db.profile.applicationsToImmune and "IMM" or (stage == 1 and "50" or "25")))
             icon.confidence:SetVertexColor(entry.exact and 0.20 or 0.58, entry.exact and 0.92 or 0.62, entry.exact and 1.00 or 0.68, 1)
-            if ns.db.profile.showSwipe and entry.resetAt then
+            if ns.db.profile.showSwipe and entry.resetAt and not entry.auraUncertain and not entry.timerUnknown then
                 local duration = entry.nativeDuration or ns.db.profile.resetSeconds
                 if icon.cooldownStart ~= entry.resetAt - duration or icon.cooldownDuration ~= duration then
                     icon.cooldown:SetCooldown(entry.resetAt - duration, duration)

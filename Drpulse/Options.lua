@@ -116,7 +116,7 @@ function Options:Create()
     description:SetPoint("TOPLEFT", 24, -78)
     description:SetWidth(672)
     description:SetJustifyH("LEFT")
-    description:SetText("Blue = confirmed. Gray = estimated or unknown percentage (?). CC = active effect; the reset timer has not started. Restricted GUIDs are tracked only while the unit stays visible.")
+    description:SetText("50 / 25 / IMM = estimated next CC. CC = effect observed. ? = missing data, not confirmed immunity. Blue = native data; gray = estimate. Unknown indicators expire automatically.")
     description:SetTextColor(0.68, 0.73, 0.80)
 
     local displayTitle = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
@@ -407,6 +407,9 @@ SlashCmdList.DRPULSE = function(message)
             if ok and not ns:IsSecret(value) then supported = value and "yes" or "no" end
         end
         local diagnostics = ns.Core.diagnostics
+        ns:Print(("v%s | Auras: events %d, event CC reads %d, scan errors %d, unreadable entries %d, readable CC reads %d."):format(
+            ns.version, diagnostics.auraEvents, diagnostics.auraPayloads, diagnostics.auraErrors,
+            diagnostics.auraUnreadable, diagnostics.auraReadable))
         ns:Print(("Native: supported %s, event %s, received %d, applied %d, restricted %d."):format(
             supported, ns.Core.nativeEventRegistered and "yes" or "no",
             diagnostics.nativeEvents, diagnostics.nativeApplied, diagnostics.nativeRestricted))
@@ -422,6 +425,15 @@ SlashCmdList.DRPULSE = function(message)
             targetKey and (targetKey:sub(1, 5) == "unit:" and "token" or "GUID") or "none",
             focusKey and (focusKey:sub(1, 5) == "unit:" and "token" or "GUID") or "none",
             plates, diagnostics.auraRestricted))
+        if diagnostics.lastAuraError then
+            ns:Print("Last aura API error: " .. diagnostics.lastAuraError:gsub("|", "||"))
+        end
+        if diagnostics.auraSkipped > 0 then
+            ns:Print(("Aura entries skipped by client access rules: %d."):format(diagnostics.auraSkipped))
+        end
+        if supported == "no" and diagnostics.auraReadable == 0 then
+            ns:Print("No readable DR source yet. Native DR is unavailable; aura access may be blocked.")
+        end
     elseif command == "reset" then
         ns.Core:ResetProfile()
         ns:Print("Settings reset.")

@@ -1,7 +1,7 @@
 local addonName, ns = ...
 
 ns.addonName = addonName
-ns.version = C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(addonName, "Version") or "1.0.8"
+ns.version = C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(addonName, "Version") or "1.0.13"
 ns.prefix = "|cff61dafbDrpulse|r"
 ns.events = CreateFrame("Frame")
 ns.callbacks = {}
@@ -11,7 +11,8 @@ function ns:Print(message)
 end
 
 function ns:IsSecret(value)
-    return issecretvalue and issecretvalue(value) or false
+    if issecretvalue and issecretvalue(value) then return true end
+    return type(value) == "table" and issecrettable and issecrettable(value) or false
 end
 
 function ns:Readable(value)

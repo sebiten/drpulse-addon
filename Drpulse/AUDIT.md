@@ -1,3 +1,19 @@
+## Revisión 1.0.13 — 15 de octubre de 2026
+
+44 pruebas de lógica y 51 de UI/ciclo de vida pasan con Fengari. Incluyen consulta por ID con identidad secreta, final de aura independiente de otra restringida, eventos nativos parciales duplicados, correlación opaca por enemigo, recuperación de la CVar fuera de combate y watchers con token secreto. Todos los módulos Lua se analizan correctamente.
+
+La correlación opaca cubre únicamente CC directo del jugador con objetivo capturado al enviar el lanzamiento; se marca desconocida y caduca. La cobertura opaca de mascotas, grupo y áreas queda fuera de esta versión. Las categorías del catálogo son provisionales. Estas pruebas no sustituyen la validación en el cliente.
+
+## Revisión histórica 1.0.11 — 15 de octubre de 2026
+
+Se reprodujeron fuera del juego el doble conteo al cambiar la legibilidad del ID, la ocultación tras un evento válido seguida de un sondeo fallido y el conteo injustificado por cambios de tiempos. Corregidos con pruebas específicas: 39 de lógica y 50 de UI/ciclo de vida. Las simulaciones no certifican el funcionamiento dentro de Forever.
+
+La consulta de auras sigue las restricciones declaradas por el cliente. El predicado opcional C_Secrets.ShouldUnitAuraIndexBeSecret permite omitir entradas restringidas antes de consultar las siguientes. Los errores reales se guardan en DrpulseDB.lastAuraError y se muestran en /drpulse status. No se usan lanzamientos propios como prueba de que el CC impactó ni se intenta acceder a datos secretos.
+
+Un indicador desconocido conserva únicamente evidencia histórica y caduca; no afirma que haya CC activo ni inmunidad. Si no hay datos legibles ni eventos nativos, el addon no puede reconstruir DR fiables. Las afirmaciones y totales de la revisión histórica siguiente corresponden a versiones anteriores.
+
+Fuentes: [API de restricciones](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/SecretPredicateAPIDocumentation.lua), [precondiciones de acceso](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/SecretPredicatesDocumentation.lua).
+
 # Revisión de Drpulse — 2026-10-14
 
 Versión revisada: **1.0.6**. Resultado: 45 pruebas automatizadas fuera de WoW superadas y sintaxis de los seis módulos Lua comprobada con Fengari. Se generó el paquete ZIP; no se ejecutaron build, lint ni pruebas en el cliente.

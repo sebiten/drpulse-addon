@@ -2,7 +2,7 @@
 
 Drpulse es un tracker original de diminishing returns diseñado para la API moderna de **World of Warcraft: Forever (1.60.1 / Interface 16001)**.
 
-**1.0.8: saludo al iniciar sesión; sin validación dentro del cliente.** La compatibilidad de las firmas de API no certifica las reglas de combate ni la disponibilidad de datos en PvP.
+**1.0.13: lectura por hechizo, eventos por unidad, datos nativos parciales y correlación estimada de lanzamientos propios.** Verificado con 44 pruebas de lógica y 51 de UI/ciclo de vida fuera del juego; pendiente de validar en Forever.
 
 ## Funciones
 
@@ -18,15 +18,16 @@ Drpulse es un tracker original de diminishing returns diseñado para la API mode
 
 ## Precisión del seguimiento
 
-- Los estados se comparten por GUID legible. Si el GUID está restringido, se sigue al objetivo, foco o placa visible sólo mientras conserve ese token; el estado se borra al cambiar de unidad.
+- Los estados se comparten por GUID o nombre completo legible del jugador. Sin ambos, se sigue únicamente la vida del token visible.
+- Un lanzamiento propio de CC directo puede asociarse a un evento nativo opaco del mismo enemigo durante 1,5 segundos. Esta correlación muestra porcentaje y tiempo desconocidos; un lanzamiento por sí solo no crea DR. No se atribuyen efectos de área, procs o trampas por esta vía.
 - El fallback muestra `CC` mientras queda alguna aura de la categoría. La ventana de reinicio comienza al desaparecer la última.
 - Al perder la última unidad observable se descarta el CC activo, sin inventar cuándo terminó. Las cuentas de reinicio ya iniciadas se conservan por GUID.
 - El feed nativo tiene prioridad sobre las auras. Su temporizador e inmunidad no se sobrescriben con estimaciones.
 - El feed no informa el número de aplicaciones: se muestra `?` cuando no se conoce el porcentaje, e `IMM` cuando confirma inmunidad.
-- Si el hechizo de un aura es legible pero su ID de instancia no, se sigue como estimación por hechizo. Si la lectura falla o el hechizo es secreto, se ocultan las estimaciones. Al recuperar la visibilidad se descarta el conteo anterior.
+- Si el hechizo de un aura es legible pero su ID de instancia no, se sigue como estimación por hechizo. Las auras restringidas no bloquean la lectura de las demás. Al perder observación se conserva temporalmente un indicador desconocido (?), sin afirmar CC activo ni un temporizador preciso. Caduca tras la ventana configurada; el porcentaje permanece desconocido hasta un nuevo ciclo.
 - Sólo se siguen unidades atacables con identidad legible. Cambiar de zona reinicia el seguimiento; se vuelven a leer las unidades visibles.
 - Desactivar el feed en Drpulse no desactiva la interfaz nativa de Blizzard. Activarlo solicita la CVar global sólo si el sistema nativo está disponible.
-- La base local de hechizos y la ventana estimada de 18 segundos no están certificadas para el ruleset de Forever. Puede faltar cobertura de rangos y variantes. Reaplicaciones que conserven el mismo ID de aura tampoco se pueden contar con fiabilidad desde una instantánea.
+- La base local de hechizos y la ventana estimada de 18 segundos no están certificadas para el ruleset de Forever. Puede faltar cobertura de rangos y variantes. Un cambio de tiempos con el mismo ID no demuestra una nueva aplicación: se marca el porcentaje como desconocido. Los cambios entre ID restringido y legible no suman otra aplicación.
 
 ## Instalación
 

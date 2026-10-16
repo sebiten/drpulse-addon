@@ -70,6 +70,7 @@ local function setup(saved)
     date = function() return "12:00:00" end
     strtrim = function(value) return value:match("^%s*(.-)%s*$") end
     issecretvalue = function() return false end
+    C_Secrets, issecrettable = nil, nil
     C_UnitAuras = { GetAuraDataByIndex = function(unit, index) return (auras[unit] or {})[index] end }
     C_Spell = { GetSpellTexture = function() return nil end }
     C_NamePlate = { GetNamePlates = function() return {} end }
@@ -191,8 +192,8 @@ test("status command reports observation limits", function()
     local messages = {}
     DEFAULT_CHAT_FRAME.AddMessage = function(_, message) messages[#messages + 1] = message end
     SlashCmdList.DRPULSE("status")
-    assert(#messages == 2 and messages[1]:find("Native:"))
-    assert(messages[2]:find("target GUID"))
+    assert(#messages == 3 and messages[1]:find("Auras:") and messages[2]:find("Native:"))
+    assert(messages[3]:find("target GUID"))
 end)
 
 test("history opens on the first click and toggles", function()
@@ -212,11 +213,11 @@ test("cooldown swipe is not restarted by every UI tick", function()
     assert(not ns.UI.bars.target:IsShown())
 end)
 
-test("aura restrictions hide only inferred indicators", function()
+test("aura restrictions retain a bounded unknown indication and native data restores certainty", function()
     auras.target = { aura() }; login()
     C_UnitAuras.GetAuraDataByIndex = function() error("restricted") end
     event("UNIT_AURA", "target"); ns.UI:Refresh()
-    assert(not ns.UI.bars.target:IsShown())
+    assert(ns.UI.bars.target:IsShown() and ns.UI.bars.target.icons[2].timer.text == "?")
     ns.Core:ApplyNative("target", { category = 2, startTime = 100, duration = 18, isImmune = true, showCountdown = true })
     assert(ns.UI.bars.target:IsShown() and ns.UI.bars.target.icons[2].stage.text == "IMM")
 end)
@@ -257,6 +258,100 @@ test("spell commands reject invalid IDs and apply category changes immediately",
     assert(ns.Core:GetUnitState("target", false).categories[0].active)
     SlashCmdList.DRPULSE("remove 408")
     assert(ns.Core:GetUnitState("target", false).categories[2].active)
+end)
+
+-- Cover every category with a built-in aura fallback. Knockbacks have no
+-- spell mapping here and are covered through native events below.
+for _, case in ipairs({
+    { "root", 10230, 0 }, { "taunt", 355, 1 }, { "stun", 10308, 2 },
+    { "incapacitate", 12826, 4 }, { "disorient", 6215, 5 },
+    { "silence", 15487, 6 }, { "disarm", 676, 7 },
+}) do
+test(case[1] .. " appears and repeats without selecting the nameplate or aura events", function()
+    local spellID, category = case[2], case[3]
+    local plate = frame()
+    C_NamePlate.GetNamePlateForUnit = function() return plate end
+    units.target, units.focus, units.nameplate1 = nil, nil, "C"
+    local hostile = false
+    UnitCanAttack = function() return hostile end
+    login()
+    ns.db.profile.categories[category] = true
+    event("NAME_PLATE_UNIT_ADDED", "nameplate1")
+    assert(not ns.UI.nameplates.nameplate1:IsShown())
+    hostile = true
+    auras.nameplate1 = { { auraInstanceID = 7, spellId = spellID, duration = 10, expirationTime = 110 } }
+    ns.Core.ticker.callback()
+    local bar = ns.UI.nameplates.nameplate1
+    assert(bar:IsShown() and bar.icons[category].timer.text == "CC")
+    assert(bar.point[1] == "BOTTOM" and bar.point[3] == "TOP" and bar.point[5] == 10)
+    clock = 102
+    auras.nameplate1[1].auraInstanceID = 10
+    auras.nameplate1[1].duration, auras.nameplate1[1].expirationTime = 5, 107
+    ns.Core.ticker.callback()
+    assert(bar:IsShown() and bar.icons[category].stage.text == "25")
+    clock = 107; auras.nameplate1 = {}; ns.Core.ticker.callback()
+    assert(bar.icons[category].timer.text == "18")
+    clock = 108
+    auras.nameplate1 = { { auraInstanceID = 8, spellId = spellID } }
+    ns.Core.ticker.callback()
+    assert(bar:IsShown() and bar.icons[category].stage.text == "IMM")
+    clock = 110; auras.nameplate1 = {}; ns.Core.ticker.callback()
+    clock = 129; ns.Core.ticker.callback()
+    assert(not bar:IsShown())
+    clock = 130; auras.nameplate1 = { { auraInstanceID = 9, spellId = spellID } }
+    ns.Core.ticker.callback()
+    assert(bar:IsShown() and bar.icons[category].stage.text == "50")
+    event("NAME_PLATE_UNIT_REMOVED", "nameplate1")
+    clock = 131; ns.Core.ticker.callback()
+    assert(not bar:IsShown())
+end)
+end
+
+for category = 0, 7 do
+test("native category " .. category .. " updates and reappears on an unselected plate", function()
+    local plate = frame()
+    C_NamePlate.GetNamePlateForUnit = function() return plate end
+    units.target, units.focus, units.nameplate1 = nil, nil, "C"
+    login()
+    ns.db.profile.categories[category] = true
+    event("NAME_PLATE_UNIT_ADDED", "nameplate1")
+    local function update(start, immune)
+        event("UNIT_SPELL_DIMINISH_CATEGORY_STATE_UPDATED", "nameplate1",
+            { category = category, startTime = start, duration = 18, isImmune = immune, showCountdown = true })
+    end
+    update(100, false)
+    local bar = ns.UI.nameplates.nameplate1
+    assert(bar:IsShown() and bar.icons[category].timer.text == "18")
+    clock = 105; update(105, true)
+    assert(bar.icons[category].stage.text == "IMM" and bar.icons[category].timer.text == "18")
+    clock = 124; ns.Core.ticker.callback()
+    assert(not bar:IsShown())
+    clock = 125; update(125, false)
+    assert(bar:IsShown() and bar.icons[category].stage.text == "?")
+end)
+end
+
+test("simultaneous DR categories refresh and expire independently", function()
+    local plate = frame()
+    C_NamePlate.GetNamePlateForUnit = function() return plate end
+    units.target, units.focus, units.nameplate1 = nil, nil, "C"
+    login(); event("NAME_PLATE_UNIT_ADDED", "nameplate1")
+    local root = { auraInstanceID = 1, spellId = 10230, duration = 10, expirationTime = 110 }
+    local stun = { auraInstanceID = 2, spellId = 10308, duration = 6, expirationTime = 106 }
+    auras.nameplate1 = { root, stun }; ns.Core.ticker.callback()
+    local bar = ns.UI.nameplates.nameplate1
+    assert(bar.icons[0]:IsShown() and bar.icons[2]:IsShown())
+    clock = 102; root.duration, root.expirationTime = 5, 107
+    root.auraInstanceID = 10
+    ns.Core.ticker.callback()
+    assert(bar.icons[0].stage.text == "25" and bar.icons[2].stage.text == "50")
+    clock = 106; auras.nameplate1 = { root }; ns.Core.ticker.callback()
+    assert(bar.icons[0].timer.text == "CC" and bar.icons[2].timer.text == "18")
+    clock = 107; auras.nameplate1 = {}; ns.Core.ticker.callback()
+    clock = 124; ns.Core.ticker.callback()
+    assert(bar.icons[0]:IsShown() and not bar.icons[2]:IsShown())
+    clock = 125; ns.Core.ticker.callback()
+    assert(not bar:IsShown())
 end)
 
 test("nameplates attach, disappear and reuse safely", function()
@@ -344,6 +439,124 @@ test("missing minimap and invalid saved angles do not break addon loading", func
     assert(ns.db.profile.minimap.hide == false)
     SlashCmdList.DRPULSE("")
     assert(ns.Options.frame:IsShown())
+end)
+
+for _, case in ipairs({ { 10230, 0 }, { 355, 1 }, { 10308, 2 }, { 12826, 4 },
+    { 6215, 5 }, { 15487, 6 }, { 676, 7 } }) do
+test("category " .. case[2] .. " remains visible beside a secret aura and updates directly from events", function()
+    local spellID, category = case[1], case[2]
+    local secret = {}
+    issecretvalue = function(value) return rawequal(value, secret) end
+    local plate = frame()
+    C_NamePlate.GetNamePlateForUnit = function() return plate end
+    units.target, units.focus, units.nameplate1 = nil, nil, "C"
+    login(); ns.db.profile.categories[category] = true
+    event("NAME_PLATE_UNIT_ADDED", "nameplate1")
+    local cc = { auraInstanceID = 7, spellId = spellID, duration = 10, expirationTime = 110, isHarmful = true }
+    auras.nameplate1 = { { spellId = secret }, cc }
+    event("UNIT_AURA", "nameplate1")
+    local bar = ns.UI.nameplates.nameplate1
+    assert(bar:IsShown() and bar.icons[category].timer.text == "CC")
+    assert(bar.icons[category].stage.text == "50")
+    clock = 102; cc.duration, cc.expirationTime = 5, 107
+    cc.auraInstanceID = 10
+    event("UNIT_AURA", "nameplate1", { removedAuraInstanceIDs = { 7 } })
+    assert(bar:IsShown() and bar.icons[category].stage.text == "25")
+    -- The next readable application arrives in the event, not the indexed snapshot.
+    auras.nameplate1 = { secret }
+    clock = 104
+    local nextCC = { auraInstanceID = 8, spellId = spellID, isHarmful = true }
+    event("UNIT_AURA", "nameplate1", { addedAuras = { nextCC }, removedAuraInstanceIDs = { 10 } })
+    assert(bar:IsShown() and bar.icons[category].stage.text == "IMM")
+    assert(ns.Core.diagnostics.auraPayloads == 1)
+    clock = 106
+    event("UNIT_AURA", "nameplate1", { removedAuraInstanceIDs = { 8 } })
+    assert(bar:IsShown() and bar.icons[category].timer.text == "18")
+end)
+end
+
+test("a restricted category does not hide a readable category or reset its count", function()
+    local secret = {}
+    issecretvalue = function(value) return rawequal(value, secret) end
+    auras.target = { { auraInstanceID = 1, spellId = 10230 }, { auraInstanceID = 2, spellId = 10308 } }
+    login()
+    auras.target = { secret, { auraInstanceID = 2, spellId = 10308 } }
+    event("UNIT_AURA", "target")
+    local bar = ns.UI.bars.target
+    assert(bar.icons[0]:IsShown() and bar.icons[0].timer.text == "?" and bar.icons[2]:IsShown())
+    auras.target = { { auraInstanceID = 1, spellId = 10230 }, { auraInstanceID = 2, spellId = 10308 } }
+    event("UNIT_AURA", "target")
+    assert(bar.icons[0]:IsShown() and bar.icons[0].stage.text == "?")
+    assert(bar.icons[2].stage.text == "50")
+end)
+
+test("updated aura payloads work during scan errors and ignore buffs and secret IDs", function()
+    local secret = {}
+    issecretvalue = function(value) return rawequal(value, secret) end
+    login()
+    C_UnitAuras.GetAuraDataByIndex = function() error("unavailable") end
+    C_UnitAuras.GetAuraDataByAuraInstanceID = function(_, id)
+        assert(id == 9)
+        return { auraInstanceID = 9, spellId = 12826, isHarmful = true }
+    end
+    event("UNIT_AURA", "target", {
+        addedAuras = { { auraInstanceID = 1, spellId = 10308, isHarmful = false }, secret },
+        updatedAuraInstanceIDs = { secret, 9 }, removedAuraInstanceIDs = { secret },
+    })
+    assert(ns.UI.bars.target.icons[4]:IsShown())
+    assert(not ns.UI.bars.target.icons[2])
+    assert(ns.Core.diagnostics.auraErrors > 0 and ns.Core.diagnostics.auraPayloads == 1)
+    event("UNIT_AURA", "target", secret)
+    assert(ns.UI.bars.target:IsShown() and ns.UI.bars.target.icons[4].timer.text == "?")
+end)
+
+test("a readable event survives failed polling as unknown and then expires", function()
+    login()
+    C_UnitAuras.GetAuraDataByIndex = function() error("blocked by client") end
+    event("UNIT_AURA", "target", { addedAuras = {
+        { auraInstanceID = 1, spellId = 12826, isHarmful = true },
+    } })
+    local bar = ns.UI.bars.target
+    assert(bar:IsShown() and bar.icons[4].timer.text == "CC")
+    clock = 101.1; ns.Core.ticker.callback()
+    assert(bar:IsShown() and bar.icons[4].timer.text == "?" and bar.icons[4].stage.text == "?")
+    assert(not bar.icons[4].cooldown:IsShown())
+    clock = 120; ns.Core.ticker.callback()
+    assert(not bar:IsShown())
+end)
+
+test("status exposes the actual error instead of silently reporting only a counter", function()
+    login()
+    C_UnitAuras.GetAuraDataByIndex = function() error("test error: aura access denied") end
+    event("UNIT_AURA", "target")
+    local messages = {}
+    DEFAULT_CHAT_FRAME.AddMessage = function(_, message) messages[#messages + 1] = message end
+    SlashCmdList.DRPULSE("status")
+    local found = false
+    for _, message in ipairs(messages) do
+        if message:find("test error: aura access denied", 1, true) then found = true end
+    end
+    assert(found and ns.db.lastAuraError:find("GetAuraDataByIndex", 1, true))
+end)
+
+test("unit watchers accept secret payload tokens and unregister removed plates", function()
+    C_NamePlate.GetNamePlateForUnit = function() return frame() end
+    local restricted = {}
+    issecretvalue = function(value) return rawequal(value, restricted) end
+    methods.RegisterUnitEvent = function(self, name, unit) self.calls[name] = unit end
+    methods.UnregisterAllEvents = function(self) self.calls = {} end
+    ns.Core.unitEventsSupported = true
+    login()
+    local watcher = ns.Core.watchers.target
+    assert(watcher.calls.UNIT_AURA == "target")
+    watcher.scripts.OnEvent(watcher, "UNIT_SPELL_DIMINISH_CATEGORY_STATE_UPDATED", restricted,
+        { category = 2, startTime = 100, duration = 18, isImmune = true, showCountdown = true })
+    assert(ns.UI.bars.target.icons[2].stage.text == "IMM")
+    units.nameplate1 = "C"; event("NAME_PLATE_UNIT_ADDED", "nameplate1")
+    local plateWatcher = ns.Core.watchers.nameplate1
+    event("NAME_PLATE_UNIT_REMOVED", "nameplate1")
+    assert(ns.Core.watchers.nameplate1 == nil and next(plateWatcher.calls) == nil)
+    methods.RegisterUnitEvent, methods.UnregisterAllEvents = nil, nil
 end)
 
 print(passed .. " lifecycle/UI tests passed")
