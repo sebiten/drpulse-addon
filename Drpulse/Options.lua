@@ -380,7 +380,7 @@ ns:On("HISTORY_CHANGED", function() Options:RefreshHistory() end)
 ns:On("READY", function() Options:RegisterSettings() end)
 
 SLASH_DRPULSE1 = "/drpulse"
-SLASH_DRPULSE2 = "/rdr"
+SLASH_DRPULSE2 = nil
 SlashCmdList.DRPULSE = function(message)
     if not ns.db then return end
     local input = strtrim(message or "")

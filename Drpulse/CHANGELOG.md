@@ -1,5 +1,61 @@
 # Changelog
 
+## 2.0.0-beta.8 - October 16, 2026
+
+- Skip unchanged icon textures, text, colors, sizes and anchors during display updates.
+- Reuse snapshot lists when filtering categories and avoid repeatedly hiding unused pooled icons.
+- Preserve timer frequency, tracking behavior and the restricted-value display path.
+
+## 2.0.0-beta.7 - October 16, 2026
+
+- Redesign settings with sidebar navigation, section descriptions and clearer control spacing.
+- Replace boxed setting labels with quieter rows and compact On/Off controls.
+- Keep the donation link visible in a fixed footer and fit the window to smaller screens.
+
+## 2.0.0-beta.6 - October 16, 2026
+
+- Add an icon font selector: Game default, Friz Quadrata, Arial Narrow, Morpheus and Skurri, applied to timers and stack text on the target and nameplates.
+- Add horizontal and vertical nameplate icon offsets from -300 to 300 pixels, preserving existing above/below placement and separation.
+- Update live settings previews for fonts and offsets, fitting extreme positions inside the preview area.
+- Include the new settings in Reset appearance; existing saved profiles retain their current appearance.
+
+## 2.0.0-beta.5 - October 15, 2026
+
+- Move settings out of the Blizzard AddOns panel into a standalone Drpulse window.
+- Add a draggable title bar, close button, and Escape-key support.
+- Preserve the General, Appearance, Detection, Tools, and Guide navigation in the new window.
+- Add a persistent support area with an optional PayPal donation link that can be selected and copied.
+- Route `/drpulse`, the minimap launcher, AddOn Compartment, and target-display settings shortcut to the standalone window.
+- Remove the active ForeverSettings dependency and legacy AddOns-panel registration.
+- Update the CurseForge description with the current features, data-confidence behavior, installation steps, and complete command list.
+
+## 2.0.0-beta.4 — October 15, 2026
+
+- Replace the inherited accordion settings layout with a Drpulse control deck split into General, Appearance, Detection, Tools and Guide.
+- Standardize the public command and every help reference on `/drpulse`; remove the `/rdr` alias.
+- Keep all in-game text and release documentation in English.
+
+## 2.0.0-beta.3 — October 15, 2026
+
+- Enlarge and center the three DR application markers, scaling their width and height to the icon size.
+- Add a dark backing behind the markers for contrast against spell artwork and cooldown shading.
+- Tracking and timer calculations are unchanged.
+
+## 2.0.0-beta.2 — October 15, 2026
+
+- Restyle live icons and previews with a navy shell, cyan corner accent, thin stage rail and segmented application markers.
+- Prefix estimated countdowns with ~ and clarify unconfirmed immunity in tooltips.
+- Keep tracking calculations unchanged. The timer measures time until DR reset, not remaining CC duration.
+
+## 2.0.0-beta.1 — October 15, 2026
+
+- Replace the active runtime with a complete MIT-attributed adaptation of Forever DR 0.8.0, including its tracker, evidence sources, catalog, settings, menus and previews.
+- Restore reference behavior when native DR is unsupported, including unconfirmed cast estimates, pet/group casts and combat feedback.
+- Use Drpulse-specific commands, globals and saved data, with non-destructive migration of compatible 1.x settings.
+- Introduce cyan accents and dark blue hover states; retain the Drpulse minimap launcher.
+- Match 12 offline behavior scenarios against the original ZIP; verify migration and startup wiring. Real-client visual and combat validation remains pending.
+- Target and nameplate displays follow the reference. The separate 1.x focus bar and history are not part of this runtime.
+
 ## 1.0.13 — October 15, 2026
 
 - Preserve known spell IDs when returned aura identities are restricted.
@@ -71,48 +127,48 @@
 
 ## 1.0.5 — 2026-10-14
 
-- Rediseñada la experiencia de apoyo con un botón destacado pero discreto y una ventana visual de PayPal.
-- Texto claro: Drpulse seguirá siendo gratuito y la donación es opcional y de una sola vez.
-- Añadidos los comandos `/drpulse donate` y `/drpulse support`.
-- Añadido el enlace directo de PayPal en README y CurseForge.
-- El enlace queda seleccionado para copiar con `Ctrl+C`; el addon no intenta abrir el navegador.
+- Redesigned the support experience with a prominent but restrained button and a dedicated PayPal dialog.
+- Clarified that Drpulse will remain free and donations are optional and one-time.
+- Added `/drpulse donate` and `/drpulse support` commands.
+- Added the direct PayPal link to README and CurseForge.
+- The link is selected for copying with `Ctrl+C`; the addon does not attempt to open a browser.
 
 ## 1.0.4 — 2026-10-14
 
-- Traducción al inglés de los textos dentro del juego, incluidas las barras Target y Focus, categorías, opciones e historial.
-- Añadido un botón Donate que muestra el enlace de PayPal seleccionado para copiar; WoW no permite abrir directamente el navegador desde addons.
-- 39 pruebas automatizadas fuera del juego. La validación dentro del cliente Forever sigue pendiente.
+- Translated in-game text to English, including Target and Focus bars, categories, settings, and history.
+- Added a Donate button that displays the selected PayPal link for copying; WoW addons cannot open a browser directly.
+- 39 automated offline tests. Validation in the Forever client remains pending.
 
 ## 1.0.2-beta.2 — 2026-10-14
 
-- Cambio de marca a Drpulse, incluido el comando `/drpulse` y el paquete para la carpeta `Drpulse`.
-- Compatibilidad de lectura para migrar `DRiftDB` a `DrpulseDB` cuando la variable anterior está disponible.
-- 37 pruebas fuera del juego. Distribución marcada Beta; reglas de combate y comportamiento del cliente pendientes de validar.
+- Rebranded to Drpulse, including the `/drpulse` command and the `Drpulse` package folder.
+- Added read compatibility to migrate `DRiftDB` into `DrpulseDB` when the previous variable is available.
+- 37 offline tests. Distribution marked Beta; combat rules and client behavior remain pending validation.
 
 ## 1.0.2-beta.1 — 2026-10-13
 
-- Recuperación de SavedVariables con tipos, rangos y anclajes inválidos.
-- Rechazo de eventos, tablas y números ilegibles o malformados antes de operar con ellos.
-- Ocultación de estimaciones durante restricciones de auras y reinicio del conteo al recuperar visibilidad.
-- Protección contra borrados nativos atrasados; eventos de arena asociados a GUID ya observados.
-- Seguimiento limitado a unidades atacables; limpieza al cambiar de mundo y lectura inicial del objetivo/foco.
-- Corrección del primer acceso al historial, cierre del historial y sincronización de restablecer opciones.
-- Animación radial sin reinicios en cada tick, números duplicados desactivados e icono alternativo si falta la textura del hechizo.
-- Desactivar el feed local conserva la preferencia de la interfaz nativa de Blizzard.
-- 36 pruebas fuera del juego. Distribución marcada Beta; reglas de combate y comportamiento del cliente pendientes de validar.
+- Recovered SavedVariables with invalid types, ranges, and anchors.
+- Rejected unreadable or malformed events, tables, and numbers before operating on them.
+- Hid estimates during aura restrictions and reset counts when visibility returned.
+- Protected against delayed native removals; associated arena events with already observed GUIDs.
+- Limited tracking to attackable units; cleared state on world changes and performed initial target/focus reads.
+- Fixed first history access, history closing, and settings reset synchronization.
+- Kept radial animation stable across ticks, disabled duplicate numbers, and added a fallback icon when spell artwork is unavailable.
+- Disabling the local feed preserves the Blizzard native UI preference.
+- 36 offline tests. Distribution marked Beta; combat rules and client behavior remain pending validation.
 
 ## 1.0.1 — 2026-10-13
 
-- Identidad basada únicamente en GUID legibles para evitar mezclar enemigos.
-- Reinicio estimado después de la última aura de cada categoría, sin expirar durante CC activo.
-- Prioridad del feed nativo y eliminación de la deduplicación temporal de 0,35 segundos.
-- Porcentaje desconocido indicado con `?`; inmunidad y duración nativas respetadas.
-- Pruebas de regresión de identidad, ciclo de auras y prioridad de fuentes.
+- Based identity only on readable GUIDs to avoid merging enemies.
+- Estimated reset after the last aura in each category without expiring during active CC.
+- Prioritized the native feed and removed the 0.35-second temporal deduplication.
+- Marked unknown percentages with `?`; preserved native immunity and duration data.
+- Added regression coverage for identity, aura lifecycle, and source priority.
 
 ## 1.0.0 — 2026-10-13
 
-- Primera versión para WoW: Forever 1.60.1.
-- Target, focus y nameplates.
-- Integración con SpellDiminishUI y fallback seguro por auras.
-- Configuración, vista previa, historial e indicador de confianza.
+- First release for WoW: Forever 1.60.1.
+- Target, focus, and nameplates.
+- SpellDiminishUI integration with a safe aura fallback.
+- Settings, preview, history, and confidence indicator.
 

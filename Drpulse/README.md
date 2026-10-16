@@ -1,81 +1,43 @@
-# Drpulse — Diminishing Returns para WoW: Forever
+# Drpulse — WoW: Forever
 
-Drpulse es un tracker original de diminishing returns diseñado para la API moderna de **World of Warcraft: Forever (1.60.1 / Interface 16001)**.
+Version 2.0.0-beta.8. Adaptation of Forever DR 0.8.0 (reference ZIP), licensed under MIT with attribution to Tarolg. Drpulse integration and blue theme by Joaqoz.
 
-**1.0.13: lectura por hechizo, eventos por unidad, datos nativos parciales y correlación estimada de lanzamientos propios.** Verificado con 44 pruebas de lógica y 51 de UI/ciclo de vida fuera del juego; pendiente de validar en Forever.
+Icons use a dark navy frame, cyan accent, and a bottom status rail. The `~` prefix marks an estimated time until DR resets; it does not represent the remaining CC duration. This visual update keeps the beta.1 tracking engine unchanged.
 
-## Funciones
+## Features
 
-- Objetivo, foco y nameplates enemigos.
-- Ocho categorías nativas: stun, incapacitate, disorient/fear, root, silence, disarm, taunt y knockback.
-- Feed nativo de Blizzard cuando está disponible.
-- Fallback por auras visibles con indicador de confianza.
-- Temporizador, swipe, estado siguiente (50%, 25%, IMM) e icono del último CC.
-- Barras movibles, tamaño configurable, categorías individuales e historial de sesión.
-- Vista previa integrada y acceso desde el AddOn Compartment.
-- Botón movible del minimapa: clic izquierdo para opciones, derecho para bloquear/desbloquear barras. Su posición se guarda al arrastrarlo.
-- Sin dependencias, telemetría ni código de Diminish.
+- Complete reference engine: per-spell auras, public/partial/opaque native feed, your own casts, pets and group members, failure feedback, and estimates when no observable confirmation is available.
+- Target and nameplate displays, filters for your own categories, bag items, Auto/Always/Never category modes, and custom spells.
+- Learned durations, reset after CC ends, percentages/pips/count display, previews, context menu, and diagnostics.
+- Estimated indicators are grey and may represent a cast without confirmed impact. Disable them under Tracking sources → Show unconfirmed casts.
+- If the native feed is reported as unsupported, the remaining sources continue to work as in the reference addon.
+- Settings open in a standalone movable Drpulse window with fixed navigation, blue/cyan accents, and a selectable PayPal support link. The Drpulse minimap button remains available.
 
-## Precisión del seguimiento
+## Installation and migration
 
-- Los estados se comparten por GUID o nombre completo legible del jugador. Sin ambos, se sigue únicamente la vida del token visible.
-- Un lanzamiento propio de CC directo puede asociarse a un evento nativo opaco del mismo enemigo durante 1,5 segundos. Esta correlación muestra porcentaje y tiempo desconocidos; un lanzamiento por sí solo no crea DR. No se atribuyen efectos de área, procs o trampas por esta vía.
-- El fallback muestra `CC` mientras queda alguna aura de la categoría. La ventana de reinicio comienza al desaparecer la última.
-- Al perder la última unidad observable se descarta el CC activo, sin inventar cuándo terminó. Las cuentas de reinicio ya iniciadas se conservan por GUID.
-- El feed nativo tiene prioridad sobre las auras. Su temporizador e inmunidad no se sobrescriben con estimaciones.
-- El feed no informa el número de aplicaciones: se muestra `?` cuando no se conoce el porcentaje, e `IMM` cuando confirma inmunidad.
-- Si el hechizo de un aura es legible pero su ID de instancia no, se sigue como estimación por hechizo. Las auras restringidas no bloquean la lectura de las demás. Al perder observación se conserva temporalmente un indicador desconocido (?), sin afirmar CC activo ni un temporizador preciso. Caduca tras la ventana configurada; el porcentaje permanece desconocido hasta un nuevo ciclo.
-- Sólo se siguen unidades atacables con identidad legible. Cambiar de zona reinicia el seguimiento; se vuelven a leer las unidades visibles.
-- Desactivar el feed en Drpulse no desactiva la interfaz nativa de Blizzard. Activarlo solicita la CVar global sólo si el sistema nativo está disponible.
-- La base local de hechizos y la ventana estimada de 18 segundos no están certificadas para el ruleset de Forever. Puede faltar cobertura de rangos y variantes. Un cambio de tiempos con el mismo ID no demuestra una nueva aplicación: se marca el porcentaje como desconocido. Los cambios entre ID restringido y legible no suman otra aplicación.
+Close WoW completely. Replace the `Drpulse` folder under `Interface/AddOns` with the folder from the ZIP, then launch the game again. Test each addon separately when comparing results.
 
-## Instalación
+The new runtime uses `DrpulseV2DB`. Existing `DrpulseDB` and `DRiftDB` data remains untouched. Compatible settings are migrated: size, reset window, visibility, categories, custom spells, center position, and minimap preferences. New tracking sources start with the reference defaults. The old standalone focus bar and history are not part of this runtime; focus remains a tracking source.
 
-1. Localiza la instalación del cliente Forever desde Battle.net y extrae `Drpulse` dentro de su carpeta `Interface/AddOns/` (no anides dos carpetas `Drpulse`).
-2. Reinicia el cliente.
-3. Escribe `/drpulse` para configurar.
+## Commands
 
-## Comandos
+- `/drpulse`: open settings and list commands.
+- `/drpulse status`: print sources, counters, native data, and Blizzard options.
+- `/drpulse unlock` and `/drpulse lock`: move or lock the target display.
+- `/drpulse preview`: show a temporary preview.
+- `/drpulse clear`: clear current tracking data.
+- `/drpulse all` and `/drpulse mine`: switch the global category filter.
+- `/drpulse reset`: restore the target display position.
+- Minimap: left-click for settings, right-click to lock, drag to reposition.
 
-- `/drpulse`: opciones.
-- `/drpulse unlock` / `/drpulse lock`: mover o bloquear las barras.
-- `/drpulse preview`: vista previa.
-- `/drpulse history`: historial de la sesión.
-- `/drpulse donate`: muestra el enlace de apoyo en PayPal.
-- `/drpulse minimap`: muestra u oculta el botón del minimapa; también disponible en opciones.
-- `/drpulse status`: informa si llegan eventos nativos, cuántos datos se pueden leer y qué unidades están disponibles.
-- `/drpulse add <spellID> <categoría>`: añadir o corregir un hechizo.
-- `/drpulse remove <spellID>`: quitar un hechizo personalizado.
-- `/drpulse reset`: restaurar valores.
+## Validation
 
-## Restricciones de Forever
+Twelve scenarios run against both the original ZIP and this adaptation: unsupported feed, repeated events, resistances, observable auras, pets/group, unconfirmed area effects, opaque events, secret identity, full names, expiry, duplicates, and restricted timing data.
 
-Forever aplica las restricciones modernas de datos de combate. En ciertos contextos PvP los datos de enemigos son secretos para addons. Drpulse no intenta eludir estas restricciones: usa el feed autorizado de Blizzard, procesa auras sólo cuando son legibles y marca los cálculos estimados en gris.
+Migration, data preservation, execution of both TOC module sets, and startup/command wiring are also checked. Startup tests replace visual constructors, so they do not validate pixels, taint, or the real client. This beta still requires in-game validation.
 
-## Apoyar el proyecto
+`Core.spec.lua` and `UI.spec.lua` cover the historical 1.x implementation, which remains in the repository but is not loaded or distributed with this beta.
 
-Drpulse es gratuito y seguirá siéndolo. Si te resulta útil en PvP, puedes apoyar futuras actualizaciones con una donación opcional en [PayPal](https://www.paypal.com/paypalme/sebiten). Dentro del juego también puedes usar `/drpulse donate`.
+## License
 
-## Publicación en CurseForge
-
-- Juego: World of Warcraft.
-- Flavor: Forever.
-- Versión: 1.60.1.
-- Tipo de release: Beta, pendiente de validación en el cliente.
-- Empaqueta la carpeta `Drpulse` como raíz del ZIP.
-
-## Licencia
-
-MIT. Consulta [LICENSE](LICENSE).
-
-## Verificación sin el juego
-
-Desde la raíz del repositorio, con Node.js/npm:
-
-```powershell
-npx --yes --package fengari-node-cli fengari tests/Core.spec.lua
-npx --yes --package fengari-node-cli fengari tests/UI.spec.lua
-```
-
-Las pruebas cubren lógica y ciclo de vida/interfaz. La simulación no reproduce la ejecución segura de WoW ni verifica el aspecto visual real. Consulta `AUDIT.md` en el repositorio para conocer los límites y las fuentes.
-
+MIT. `THIRD-PARTY-LICENSE.txt` preserves Tarolg's complete notice. Adapted modules include attribution. Reproducible import logic is in `scripts/import-reference.mts`; Drpulse-specific integrations are in `Runtime/Integration.lua`.
