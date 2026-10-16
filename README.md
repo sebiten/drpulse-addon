@@ -13,6 +13,14 @@ Icons use a dark navy frame, cyan accent, and a bottom status rail. The `~` pref
 - If the native feed is reported as unsupported, the remaining sources continue to work as in the reference addon.
 - Settings open in a standalone movable Drpulse window with fixed navigation, blue/cyan accents, and a selectable PayPal support link. The Drpulse minimap button remains available.
 
+## Profiles, appearance and visibility
+
+- **Tools → Profiles:** choose a shared account profile, copy it under a new name, or create one with defaults. Each character remembers its selection. Existing settings become the Default profile.
+- **Switch with specialization:** optionally bind a selection to the current specialization (or talent group when supported). Unassigned specializations use the character's main profile. Automatic switches wait until combat ends. Shared profiles share edits; use Copy current for an independent copy.
+- **Appearance → Icon style:** the Target and Nameplates columns independently control fonts, stacks, icon sources, timer text and swipes. Older settings retain the same appearance on both surfaces.
+- **General → Displays:** optionally show icons only in combat, only in battlegrounds/arenas, or only on the current target's nameplate. Combat and instance conditions combine. Hidden displays continue tracking DR; unlocked target displays and previews remain available for setup.
+- **Tools → Share profile:** Export current selects a code for Ctrl+C. Paste a code into Profile code, enter a unique New profile name, and choose Import as new. Import never overwrites a profile. Codes include settings and custom spells, not character bindings or learned timing data.
+
 ## Installation and migration
 
 Close WoW completely. Replace the `Drpulse` folder under `Interface/AddOns` with the folder from the ZIP, then launch the game again. Test each addon separately when comparing results.

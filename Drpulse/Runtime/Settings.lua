@@ -1431,6 +1431,28 @@ local function Build()
     local profileActions = page.Row("Create profile", "Copy current preserves your settings. Use defaults creates a fresh profile. Both select the new profile for this character or specialization.")
     profileActions:Button(C1, "Copy current", function() ProfileResult(ns.CreateProfile(profileName:GetText())) end)
     profileActions:Button(C2, "Use defaults", function() ProfileResult(ns.CreateProfile(profileName:GetText(), ns.LoadSettings(nil))) end)
+    local transferMessage = "Export to copy, or paste a code and import with a new name above."
+    local transfer = page.Row("Profile code", "Export fills this box with the active profile. Press Ctrl+C to copy. To import, paste a Drpulse code here and enter a unique New profile name above.")
+    local profileCode = transfer:Input(C1, WIDE, 32768)
+    local transferActions = page.Row("Share profile", "Import validates the code and creates a new profile without overwriting existing profiles. Character and specialization bindings are not included.")
+    transferActions:Button(C1, "Export current", function()
+        local code, problem = ns.ExportProfile()
+        if code then
+            profileCode:SetText(code)
+            profileCode:SetFocus()
+            profileCode:HighlightText()
+            transferMessage = "Selected. Press Ctrl+C to copy your profile."
+        else transferMessage = problem end
+        page.Refresh()
+    end)
+    transferActions:Button(C2, "Import as new", function()
+        local ok, problem = ns.ImportProfile(profileName:GetText(), profileCode:GetText())
+        transferMessage = ok and ("Imported: " .. ns.ActiveProfile()) or problem
+        profileCode:ClearFocus()
+        page.Refresh()
+    end)
+    page.Row("Transfer status", "Import and export results. Invalid codes leave your settings unchanged.", nil, 44)
+        :Status(function() return transferMessage end, C1, WIDE)
 
     page.Group("Custom spells", false, function()
         local count = 0

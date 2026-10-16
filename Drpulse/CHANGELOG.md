@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add deterministic profile export and validated import as a new profile; reject malformed, oversized and unsupported codes without overwriting existing settings.
 - Add combat-only, battleground/arena-only and current-target nameplate visibility filters without disabling DR tracking.
 - Add independent target/nameplate fonts, stack styles, timers, swipes and icon sources, preserving older profiles' shared appearance.
 - Add account-wide named profiles, per-character selection, optional specialization/talent-group bindings and independent profile copies under Tools.
