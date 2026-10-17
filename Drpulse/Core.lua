@@ -1,0 +1,472 @@
+local _, ns = ...
+
+local Core = {}
+ns.Core = Core
+
+Core.units = {}
+Core.visibleUnits = {}
+Core.history = {}
+Core.preview = false
+Core.unitKeys = {}
+Core.diagnostics = { nativeEvents = 0, nativeRestricted = 0, nativeApplied = 0, auraRestricted = 0 }
+
+local function now()
+    return GetTime()
+end
+
+local function read(value)
+    return ns:Readable(value)
+end
+
+function Core:GetUnitKey(unit)
+    if ns:IsSecret(unit) or type(unit) ~= "string" then return nil end
+    local exists = UnitExists(unit)
+    if not ns:IsSecret(exists) and exists ~= true then return nil end
+    if UnitCanAttack then
+        local attackable = UnitCanAttack("player", unit)
+        if not ns:IsSecret(attackable) and attackable ~= true then return nil end
+    end
+    local guid = read(UnitGUID(unit))
+    if type(guid) == "string" and guid ~= "" then return "guid:" .. guid end
+    -- A restricted GUID can still be tracked for the lifetime of this visible token.
+    if unit == "target" or unit == "focus" or self.visibleUnits[unit] then
+        return "unit:" .. unit
+    end
+    return nil
+end
+
+function Core:ReleaseUnit(unit)
+    if ns:IsSecret(unit) or type(unit) ~= "string" then return end
+    local key = self.unitKeys[unit]
+    self.unitKeys[unit] = nil
+    if not key then return end
+    for _, observedKey in pairs(self.unitKeys) do
+        if observedKey == key then return end
+    end
+    local state = self.units[key]
+    if not state then return end
+    if key:sub(1, 5) == "unit:" then
+        self.units[key] = nil
+        return
+    end
+    -- Losing visibility is not evidence that a CC ended.
+    state.auras = {}
+    for category, entry in pairs(state.categories) do
+        if entry.active then state.categories[category] = nil end
+    end
+end
+
+function Core:GetUnitState(unit, create)
+    local key = self:GetUnitKey(unit)
+    if ns:IsSecret(unit) or type(unit) ~= "string" then return nil end
+    if self.unitKeys[unit] ~= key then self:ReleaseUnit(unit) end
+    if not key then return nil end
+    self.unitKeys[unit] = key
+    local state = self.units[key]
+    if not state and create then
+        state = { key = key, categories = {}, auras = {}, lastSeen = now() }
+        self.units[key] = state
+    end
+    if state then
+        state.unit = unit
+        state.lastSeen = now()
+    end
+    return state
+end
+
+function Core:Record(unit, category, spellID, source, exact)
+    local state = self:GetUnitState(unit, true)
+    if not state or not ns.CATEGORIES[category] then return end
+    local timestamp = now()
+    local entry = state.categories[category]
+    if entry and entry.source == "Blizzard" and (entry.active or (entry.resetAt and entry.resetAt > timestamp)) then
+        entry.spellID = spellID or entry.spellID
+        return
+    end
+    if not entry or (not entry.active and entry.resetAt and entry.resetAt <= timestamp) then
+        entry = { applications = 0 }
+        state.categories[category] = entry
+    end
+    entry.applications = math.min(entry.applications + 1, ns.db.profile.applicationsToImmune)
+    entry.spellID = spellID or entry.spellID
+    entry.source = source
+    entry.exact = exact == true
+    entry.active = true
+    entry.updatedAt = timestamp
+    entry.resetAt = nil
+    self:AddHistory(unit, category, entry.applications, source, spellID)
+    ns:Emit("STATE_CHANGED", unit, state)
+end
+
+function Core:EndCategory(unit, category, exactResetAt)
+    local state = self:GetUnitState(unit, false)
+    if not state then return end
+    local entry = state.categories[category]
+    if not entry or entry.source == "Blizzard" then return end
+    for _, aura in pairs(state.auras) do
+        if aura.category == category then return end
+    end
+    entry.active = false
+    entry.resetAt = exactResetAt or (now() + ns.db.profile.resetSeconds)
+    entry.exact = exactResetAt ~= nil or entry.exact
+    ns:Emit("STATE_CHANGED", unit, state)
+end
+
+function Core:ApplyNative(unit, trackerInfo)
+    if not ns.db.profile.nativeFeed then return false end
+    if ns:IsSecret(unit) or ns:IsSecret(trackerInfo) then
+        self.diagnostics.nativeRestricted = self.diagnostics.nativeRestricted + 1
+        return false
+    end
+    if type(trackerInfo) ~= "table" then return false end
+    local category = read(trackerInfo.category)
+    local startTime = read(trackerInfo.startTime)
+    local duration = read(trackerInfo.duration)
+    local isImmune = read(trackerInfo.isImmune)
+    local showCountdown = read(trackerInfo.showCountdown)
+    if not ns:IsFinite(category) or not ns.CATEGORIES[category] then
+        if ns:IsSecret(trackerInfo.category) then
+            self.diagnostics.nativeRestricted = self.diagnostics.nativeRestricted + 1
+        end
+        return false
+    end
+
+    -- The timer can still be shown when only immunity is restricted.
+    local immunityRestricted = ns:IsSecret(trackerInfo.isImmune)
+    if immunityRestricted then
+        self.diagnostics.nativeRestricted = self.diagnostics.nativeRestricted + 1
+    end
+    if not ns:IsFinite(startTime) or not ns:IsFinite(duration) or startTime < 0 or duration < 0
+        or type(showCountdown) ~= "boolean" or (type(isImmune) ~= "boolean" and not immunityRestricted) then
+        if ns:IsSecret(trackerInfo.startTime) or ns:IsSecret(trackerInfo.duration)
+            or ns:IsSecret(trackerInfo.showCountdown) then
+            self.diagnostics.nativeRestricted = self.diagnostics.nativeRestricted + 1
+        end
+        return false
+    end
+    local state = self:GetUnitState(unit, true)
+    if not state then return false end
+    local entry = state.categories[category]
+    if entry and entry.nativeStart and startTime < entry.nativeStart then return false end
+    if duration and duration <= 0 then
+        state.categories[category] = nil
+        ns:Emit("STATE_CHANGED", unit, state)
+        self.diagnostics.nativeApplied = self.diagnostics.nativeApplied + 1
+        return true
+    end
+    if showCountdown and startTime + duration <= now() then return false end
+    local duplicate = entry and entry.source == "Blizzard"
+        and entry.nativeStart == startTime and entry.nativeDuration == duration
+        and entry.active == (not showCountdown) and entry.isImmune == isImmune
+    if duplicate then return true end
+    local hadEntry = entry ~= nil and (entry.active or (entry.resetAt and entry.resetAt > now()))
+    entry = entry or {}
+    state.categories[category] = entry
+    entry.source = "Blizzard"
+    entry.exact = not immunityRestricted
+    entry.active = not showCountdown
+    entry.updatedAt = now()
+    entry.nativeStart = startTime
+    entry.nativeDuration = duration
+    entry.isImmune = isImmune
+    -- The native payload reports immunity, not the number of applications.
+    entry.applications = isImmune == true and ns.db.profile.applicationsToImmune or nil
+    entry.resetAt = showCountdown and (startTime + duration) or nil
+    if not hadEntry then
+        self:AddHistory(unit, category, entry.applications, "Blizzard", nil)
+    end
+    ns:Emit("STATE_CHANGED", unit, state)
+    self.diagnostics.nativeApplied = self.diagnostics.nativeApplied + 1
+    return true
+end
+
+function Core:ScanAuras(unit)
+    if not C_UnitAuras or not C_UnitAuras.GetAuraDataByIndex then return end
+    local state = self:GetUnitState(unit, true)
+    if not state then return end
+    if UnitIsDeadOrGhost and read(UnitIsDeadOrGhost(unit)) == true then
+        state.categories, state.auras = {}, {}
+        ns:Emit("STATE_CHANGED", unit, state)
+        return
+    end
+    local current = {}
+
+    for index = 1, 255 do
+        local ok, aura = pcall(C_UnitAuras.GetAuraDataByIndex, unit, index, "HARMFUL")
+        if not ok or ns:IsSecret(aura) then
+            state.auraRestricted = true
+            self.diagnostics.auraRestricted = self.diagnostics.auraRestricted + 1
+            return
+        end
+        if not aura then break end
+        if type(aura) ~= "table" or index == 255 then
+            state.auraRestricted = true
+            self.diagnostics.auraRestricted = self.diagnostics.auraRestricted + 1
+            return
+        end
+        local instanceID = read(aura.auraInstanceID)
+        local spellID = read(aura.spellId)
+        if not ns:IsFinite(spellID) then
+            state.auraRestricted = true
+            self.diagnostics.auraRestricted = self.diagnostics.auraRestricted + 1
+            return
+        end
+        local category = ns:GetSpellCategory(spellID)
+        if category ~= nil then
+            local key = ns:IsFinite(instanceID) and instanceID or ("spell:" .. spellID)
+            local expiration = read(aura.expirationTime)
+            local duration = read(aura.duration)
+            local appliedAt
+            if ns:IsFinite(expiration) and ns:IsFinite(duration) and expiration > 0 and duration > 0 then
+                appliedAt = expiration - duration
+            end
+            current[key] = { category = category, spellID = spellID, appliedAt = appliedAt }
+        elseif ns.db.profile.discovery then
+            ns:Emit("DISCOVERY", spellID, read(aura.name))
+        end
+    end
+
+    if state.auraRestricted then
+        -- A gap in observability invalidates inferred application counts.
+        for category, entry in pairs(state.categories) do
+            if entry.source ~= "Blizzard" then state.categories[category] = nil end
+        end
+        state.auras = {}
+        state.auraRestricted = nil
+    end
+    local previousAuras = state.auras
+    state.auras = current
+    for instanceID, aura in pairs(current) do
+        local previous = previousAuras[instanceID]
+        -- Refreshes can retain their instance ID, even when the shorter DR duration
+        -- makes the new expiration earlier. Compare readable application times.
+        local refreshed = previous and previous.appliedAt and aura.appliedAt
+            and aura.appliedAt > previous.appliedAt + 0.05
+        local entry = state.categories[aura.category]
+        if not previous or previous.category ~= aura.category or previous.spellID ~= aura.spellID
+            or refreshed or not entry or (not entry.active and entry.resetAt and entry.resetAt <= now()) then
+            self:Record(unit, aura.category, aura.spellID, "Aura", false)
+        end
+    end
+    local ended = {}
+    for instanceID, previous in pairs(previousAuras) do
+        if not current[instanceID] or current[instanceID].category ~= previous.category then
+            ended[previous.category] = true
+        end
+    end
+    for category in pairs(ended) do self:EndCategory(unit, category) end
+end
+
+function Core:AddHistory(unit, category, applications, source, spellID)
+    local name = read(UnitName(unit)) or unit or "?"
+    table.insert(self.history, 1, {
+        time = date("%H:%M:%S"),
+        name = name,
+        category = category,
+        applications = applications,
+        source = source,
+        spellID = spellID,
+    })
+    while #self.history > ns.db.profile.historySize do
+        table.remove(self.history)
+    end
+    ns:Emit("HISTORY_CHANGED")
+end
+
+function Core:GetDisplayState(unit)
+    if self.preview then return self.previewState end
+    return self:GetUnitState(unit, false)
+end
+
+function Core:ResetTracking()
+    self.units, self.unitKeys = {}, {}
+    self.nextAuraScan = nil
+    self:ScanAuras("target")
+    self:ScanAuras("focus")
+    for unit in pairs(self.visibleUnits) do self:ScanAuras(unit) end
+    ns:Emit("STATE_CHANGED")
+end
+
+function Core:PollVisibleAuras()
+    local timestamp = now()
+    if self.nextAuraScan and timestamp < self.nextAuraScan then return end
+    self.nextAuraScan = timestamp + 0.25
+    -- A plate may become attackable after it was added (e.g. a duel starts).
+    -- Read it even without an existing DR state or a UNIT_AURA notification.
+    local scanned = {}
+    local function scan(unit)
+        local state = self:GetUnitState(unit, true)
+        if state and not scanned[state.key] then
+            self:ScanAuras(unit)
+            if not state.auraRestricted then scanned[state.key] = true end
+        end
+    end
+    scan("target")
+    scan("focus")
+    for unit in pairs(self.visibleUnits) do scan(unit) end
+end
+
+function Core:ResetProfile()
+    ns.db.profile = ns:Copy(ns.DEFAULTS.profile)
+    self:SetNativeFeed(ns.db.profile.nativeFeed)
+    self:ResetTracking()
+    ns.UI:RestoreAnchors()
+    ns.UI:SetLocked(true)
+    if ns.Minimap then ns.Minimap:Refresh() end
+    if ns.Options.frame then ns.Options.frame:Refresh() end
+end
+
+function Core:CleanExpired()
+    local timestamp = now()
+    for key, state in pairs(self.units) do
+        local hasState = false
+        for category, entry in pairs(state.categories) do
+            if not entry.active and entry.resetAt and entry.resetAt <= timestamp then
+                state.categories[category] = nil
+            else
+                hasState = true
+            end
+        end
+        if not hasState and timestamp - state.lastSeen > 30 then
+            self.units[key] = nil
+        end
+    end
+    ns:Emit("TICK", timestamp)
+end
+
+function Core:SetPreview(enabled)
+    self.preview = enabled
+    if enabled then
+        local timestamp = now()
+        self.previewState = { categories = {
+            [2] = { applications = 1, resetAt = timestamp + 15.4, source = "Preview", exact = true },
+            [4] = { applications = 2, resetAt = timestamp + 10.2, source = "Preview", exact = false },
+            [5] = { applications = 3, resetAt = timestamp + 6.8, source = "Preview", exact = true },
+        }}
+    end
+    ns:Emit("PREVIEW_CHANGED", enabled)
+end
+
+function Core:Initialize()
+    self:SetNativeFeed(ns.db.profile.nativeFeed)
+    if self.ticker then self.ticker:Cancel() end
+    self.ticker = C_Timer.NewTicker(0.1, function()
+        self:PollVisibleAuras()
+        self:CleanExpired()
+    end)
+end
+
+function Core:SetNativeFeed(enabled)
+    ns.db.profile.nativeFeed = enabled
+    if enabled and self.nativeEventRegistered and C_SpellDiminish and C_SpellDiminish.IsSystemSupported
+        and C_CVar and C_CVar.SetCVar then
+        local ok, supported = pcall(C_SpellDiminish.IsSystemSupported)
+        if ok and read(supported) == true then
+            pcall(C_CVar.SetCVar, "spellDiminishPVPEnemiesEnabled", "1")
+        end
+    end
+    if enabled then return end
+    for _, state in pairs(self.units) do
+        for category, entry in pairs(state.categories) do
+            if entry.source == "Blizzard" then
+                state.categories[category] = nil
+                for instanceID, aura in pairs(state.auras) do
+                    if aura.category == category then state.auras[instanceID] = nil end
+                end
+            end
+        end
+    end
+    local units = {}
+    for unit in pairs(self.unitKeys) do units[#units + 1] = unit end
+    for _, unit in ipairs(units) do self:ScanAuras(unit) end
+end
+
+local events = ns.events
+events:RegisterEvent("ADDON_LOADED")
+events:RegisterEvent("PLAYER_LOGIN")
+events:RegisterEvent("PLAYER_ENTERING_WORLD")
+events:RegisterEvent("PLAYER_TARGET_CHANGED")
+events:RegisterEvent("PLAYER_FOCUS_CHANGED")
+events:RegisterEvent("NAME_PLATE_UNIT_ADDED")
+events:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
+events:RegisterEvent("UNIT_AURA")
+Core.nativeEventRegistered = pcall(events.RegisterEvent, events, "UNIT_SPELL_DIMINISH_CATEGORY_STATE_UPDATED")
+
+events:SetScript("OnEvent", function(_, event, ...)
+    if event == "ADDON_LOADED" then
+        local loaded = ...
+        if loaded ~= ns.addonName then return end
+        local legacyDB = type(DRiftDB) == "table" and DRiftDB or nil
+        DrpulseDB = type(DrpulseDB) == "table" and DrpulseDB or legacyDB or {}
+        DRiftDB = nil
+        ns:ValidateDB(DrpulseDB)
+        ns.db = DrpulseDB
+        ns:Emit("DB_READY")
+    elseif not ns.db then
+        return
+    elseif event == "PLAYER_LOGIN" then
+        Core:Initialize()
+        ns:Emit("READY")
+        ns:Print(("|cff8b929ev%s|r  |cff92e6bbReady to track DR|r  |cff8b929e•|r  Type |cff61dafb/drpulse|r for settings."):format(ns.version))
+    elseif event == "PLAYER_ENTERING_WORLD" then
+        for unit in pairs(Core.visibleUnits) do ns:Emit("NAMEPLATE_REMOVED", unit) end
+        Core.visibleUnits = {}
+        if C_NamePlate and C_NamePlate.GetNamePlates then
+            for _, plate in ipairs(C_NamePlate.GetNamePlates() or {}) do
+                local unit = read(plate.namePlateUnitToken)
+                if type(unit) == "string" then Core.visibleUnits[unit] = true end
+            end
+        end
+        Core:ResetTracking()
+    elseif event == "PLAYER_TARGET_CHANGED" then
+        if Core.unitKeys.target == "unit:target" then Core:ReleaseUnit("target") end
+        Core:ScanAuras("target")
+        ns:Emit("UNIT_CHANGED", "target")
+    elseif event == "PLAYER_FOCUS_CHANGED" then
+        if Core.unitKeys.focus == "unit:focus" then Core:ReleaseUnit("focus") end
+        Core:ScanAuras("focus")
+        ns:Emit("UNIT_CHANGED", "focus")
+    elseif event == "NAME_PLATE_UNIT_ADDED" then
+        local unit = ...
+        if ns:IsSecret(unit) or type(unit) ~= "string" then return end
+        Core:ReleaseUnit(unit)
+        Core.visibleUnits[unit] = true
+        Core:ScanAuras(unit)
+        ns:Emit("NAMEPLATE_ADDED", unit)
+    elseif event == "NAME_PLATE_UNIT_REMOVED" then
+        local unit = ...
+        if ns:IsSecret(unit) or type(unit) ~= "string" then return end
+        Core:ReleaseUnit(unit)
+        Core.visibleUnits[unit] = nil
+        ns:Emit("NAMEPLATE_REMOVED", unit)
+    elseif event == "UNIT_AURA" then
+        local unit = ...
+        if ns:IsSecret(unit) or type(unit) ~= "string" then return end
+        if unit == "target" or unit == "focus" or Core.visibleUnits[unit] then
+            Core:ScanAuras(unit)
+        end
+    elseif event == "UNIT_SPELL_DIMINISH_CATEGORY_STATE_UPDATED" then
+        Core.diagnostics.nativeEvents = Core.diagnostics.nativeEvents + 1
+        local unit = ...
+        if ns:IsSecret(unit) then
+            Core.diagnostics.nativeRestricted = Core.diagnostics.nativeRestricted + 1
+            return
+        end
+        if type(unit) ~= "string" then return end
+        if unit == "target" or unit == "focus" or Core.visibleUnits[unit] then
+            Core:ApplyNative(...)
+        else
+            -- Native events may use arena tokens for an observed target/focus.
+            local key = Core:GetUnitKey(unit)
+            if not key then return end
+            local _, trackerInfo = ...
+            for observedUnit, observedKey in pairs(Core.unitKeys) do
+                if observedKey == key and Core:GetUnitKey(observedUnit) == key then
+                    Core:ApplyNative(observedUnit, trackerInfo)
+                    break
+                end
+            end
+        end
+    end
+end)
+
