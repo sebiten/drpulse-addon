@@ -1,6 +1,21 @@
 # Changelog
 
-## Unreleased
+## 2.0.0-beta.11 - October 17, 2026
+
+- Move Profiles to the last position in the sidebar.
+- Remove hover highlights and tooltips from static section headings so they no longer resemble buttons.
+- Simplify profile creation: enter a name, choose Current settings or Addon defaults, then click the explicit Create profile button.
+- Reduce repeated instructions and show concise feedback after profile actions.
+- Keep existing settings, profile sharing and the persistent donation footer.
+
+## 2.0.0-beta.10 - October 17, 2026
+
+- Move all profile controls into a dedicated Profiles sidebar section.
+- Separate profile selection, creation and sharing with visible step-by-step instructions.
+- Add a dedicated imported-profile name field and inline profile operation feedback.
+- Keep the donation footer visible in every section.
+
+## 2.0.0-beta.9 - October 16, 2026
 
 - Add deterministic profile export and validated import as a new profile; reject malformed, oversized and unsupported codes without overwriting existing settings.
 - Add combat-only, battleground/arena-only and current-target nameplate visibility filters without disabling DR tracking.

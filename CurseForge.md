@@ -14,7 +14,7 @@ DRPulse combines Blizzard's native DR feed with readable auras, your casts, pet 
 
 ---
 
-## Version 2.0.0-beta.8
+## Version 2.0.0-beta.11
 
 This is a functional public beta for WoW: Forever.
 

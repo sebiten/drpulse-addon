@@ -28,14 +28,15 @@ local FULL = C2 + CW - NAME_X
 local WIDE = FULL - (C1 - NAME_X) - 4
 -- The always-open last heading (page.Help, 0.6.0).
 local HELP = "How to use"
-local SECTION_ORDER = { "general", "appearance", "detection", "tools", "guide" }
+local SECTION_ORDER = { "general", "appearance", "detection", "tools", "guide", "profiles" }
 local SECTION_LABELS = {
     general = "General", appearance = "Appearance", detection = "Detection",
-    tools = "Tools", guide = "Guide",
+    tools = "Tools", guide = "Guide", profiles = "Profiles",
 }
 local SECTION_HINTS = {
     general = "Choose what to track", appearance = "Make it your own",
     detection = "Fine-tune tracking", tools = "Manage and troubleshoot", guide = "Controls and shortcuts",
+    profiles = "Save, switch and share",
 }
 local SECTION_DETAILS = {
     general = "Choose where DR appears and which crowd control matters to you.",
@@ -43,12 +44,14 @@ local SECTION_DETAILS = {
     detection = "Choose the signals Drpulse uses to detect crowd control.",
     tools = "Manage custom spells, restore defaults and inspect tracking data.",
     guide = "Learn the mouse controls and chat commands at a glance.",
+    profiles = "Choose your setup, make an independent copy or share it.",
 }
 local SECTION_OF = {
     Displays = "general", ["What to show"] = "general",
     Categories = "appearance", ["Size and placement"] = "appearance", ["Icon style"] = "appearance",
     ["Tracking sources"] = "detection", ["Blizzard data"] = "detection",
-    Profiles = "tools", ["Custom spells"] = "tools", Advanced = "tools", Diagnostics = "tools",
+    Profiles = "profiles", ["New profile"] = "profiles", ["Share profiles"] = "profiles",
+    ["Custom spells"] = "tools", Advanced = "tools", Diagnostics = "tools",
     [HELP] = "guide",
 }
 
@@ -413,7 +416,7 @@ local function NewPage(name)
         local toggle = CreateFrame("Frame", nil, frame, "BackdropTemplate")
         toggle:SetPoint("TOPLEFT", NAME_X, -5)
         toggle:SetSize(FULL, 45)
-        toggle:EnableMouse(true)
+        toggle:EnableMouse(false)
         local pulse = toggle:CreateTexture(nil, "ARTWORK")
         pulse:SetPoint("BOTTOMLEFT", 0, 0)
         pulse:SetPoint("BOTTOMRIGHT", 0, 0)
@@ -429,17 +432,9 @@ local function NewPage(name)
         count:SetTextColor(GREY[1], GREY[2], GREY[3])
         local down = toggle:CreateTexture(nil, "OVERLAY")
         down:Hide()
-        local hovered = false
-        local function Paint()
-            local lit = hovered and GOLD or { 0.88, 0.91, 0.94 }
-            heading:SetTextColor(lit[1], lit[2], lit[3])
-        end
-        toggle:SetScript("OnEnter", function() hovered = true; Paint() end)
-        toggle:SetScript("OnLeave", function() hovered = false; Paint() end)
-        Tooltip(toggle, title, detail)
+        heading:SetTextColor(0.88, 0.91, 0.94)
         page.OnRefresh(function()
             count:SetText(summary and summary() or "")
-            Paint()
         end)
         -- Preserve the public fields consumed by the settings integration.
         this.toggle, this.summary, this.plus = toggle, count, down
@@ -1407,8 +1402,14 @@ local function Build()
     swipes:Toggle(C1, "swipe")
     swipes:Toggle(C2, "plateSwipe")
 
-    page.Group("Profiles", false, function() return ns.ActiveProfile() end,
+    page.Group("Profiles", false, function() return "Saved setups for your characters" end,
         "Profiles are shared across this account. Each character remembers its selection. Copy a profile to customize it independently.")
+    local function ProfileHint(text)
+        local _, lines = text:gsub("\n", "")
+        local frame = page.Block(24 + lines * 14)
+        Text(frame, text, NAME_X + 2, -4, { 0.62, 0.73, 0.79 }, FULL - 4)
+    end
+    ProfileHint("Shared profiles share changes. Create a copy to keep edits separate.")
     local profileOptions, profileLabels = {}, {}
     page.OnRefresh(function()
         for index = #profileOptions, 1, -1 do profileOptions[index] = nil end
@@ -1417,7 +1418,10 @@ local function Build()
             profileLabels[name] = name
         end
     end)
+    local profileMessage = ""
     local function ProfileResult(ok, problem)
+        profileMessage = ok and "Done. Your profile is selected and saves automatically."
+            or (problem or "Profile operation failed.")
         if not ok then ns.Print(problem or "Profile operation failed.") end
         page.Refresh()
     end
@@ -1426,13 +1430,29 @@ local function Build()
             set = function(value) ProfileResult(ns.SelectProfile(value)) end }, profileLabels, WIDE)
     page.Row("Switch with specialization", "Remember a profile for each specialization or talent group on this character. Select a profile while that specialization is active. Unassigned specializations use the character's main profile. Changes wait until combat ends.")
         :Toggle(C1, { get = ns.AutoSpecProfiles, set = function(value) ProfileResult(ns.SetAutoSpecProfiles(value)) end })
+    page.Group("New profile", false, function() return "Name it, choose a starting point, then create" end,
+        "Create and select a new profile without changing the original. Profile names are shared across your account.")
     local newProfile = page.Row("New profile name", "Copy the active profile into a new independent profile. Names must be unique, up to 48 characters.")
     local profileName = newProfile:Input(C1, WIDE)
-    local profileActions = page.Row("Create profile", "Copy current preserves your settings. Use defaults creates a fresh profile. Both select the new profile for this character or specialization.")
-    profileActions:Button(C1, "Copy current", function() ProfileResult(ns.CreateProfile(profileName:GetText())) end)
-    profileActions:Button(C2, "Use defaults", function() ProfileResult(ns.CreateProfile(profileName:GetText(), ns.LoadSettings(nil))) end)
-    local transferMessage = "Export to copy, or paste a code and import with a new name above."
-    local transfer = page.Row("Profile code", "Export fills this box with the active profile. Press Ctrl+C to copy. To import, paste a Drpulse code here and enter a unique New profile name above.")
+    local startFrom = "current"
+    page.Row("Start from", "Current settings makes an independent copy. Addon defaults starts with the original settings.")
+        :Choice(C1, { options = { "current", "defaults" }, get = function() return startFrom end,
+            set = function(value) startFrom = value end }, { current = "Current settings", defaults = "Addon defaults" }, WIDE)
+    local profileActions = page.Row("", "Creates and selects the new profile. Existing profiles are kept.")
+    profileActions:Button(C1, "Create profile", function()
+        local ok, problem = ns.CreateProfile(profileName:GetText(), startFrom == "defaults" and ns.LoadSettings(nil) or nil)
+        if ok then profileName:SetText(""); profileName:ClearFocus() end
+        ProfileResult(ok, problem)
+    end, WIDE)
+    page.rows["Create profile"] = profileActions
+    page.Row("Result", "Results of profile selection and creation.", nil, 44)
+        :Status(function() return profileMessage end, C1, WIDE)
+    page.Group("Share profiles", false, function() return "Copy a code or import a new profile" end,
+        "Export shares settings without character or specialization bindings. Import creates a separate profile and never overwrites one.")
+    ProfileHint("Export and copy with Ctrl+C, or paste a code to import a new profile.")
+    local transferMessage = "Import creates and selects a new profile. Existing profiles are kept."
+    local importName = page.Row("Imported profile name", "Name for the new imported profile. Choose a name that does not already exist."):Input(C1, WIDE)
+    local transfer = page.Row("Profile code", "Export fills this box with the active profile. Press Ctrl+C to copy. To import, paste a Drpulse code here and fill Imported profile name.")
     local profileCode = transfer:Input(C1, WIDE, 32768)
     local transferActions = page.Row("Share profile", "Import validates the code and creates a new profile without overwriting existing profiles. Character and specialization bindings are not included.")
     transferActions:Button(C1, "Export current", function()
@@ -1446,7 +1466,7 @@ local function Build()
         page.Refresh()
     end)
     transferActions:Button(C2, "Import as new", function()
-        local ok, problem = ns.ImportProfile(profileName:GetText(), profileCode:GetText())
+        local ok, problem = ns.ImportProfile(importName:GetText(), profileCode:GetText())
         transferMessage = ok and ("Imported: " .. ns.ActiveProfile()) or problem
         profileCode:ClearFocus()
         page.Refresh()

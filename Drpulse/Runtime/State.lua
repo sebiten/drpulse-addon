@@ -1,7 +1,7 @@
 -- Adapted from Forever DR Store.lua (MIT, Copyright 2026 Tarolg).
 -- Drpulse integration and visual adaptations: Copyright 2026 Joaqoz.
 local _, ns = ...
-ns.VERSION = "2.0.0-beta.8"
+ns.VERSION = "2.0.0-beta.11"
 ns.SCHEMA = 1
 
 -- Display order. Keys are the names of Enum.SpellDiminishCategory fields; the
