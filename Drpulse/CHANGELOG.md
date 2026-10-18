@@ -1,5 +1,31 @@
 # Changelog
 
+## 2.1.0 - October 17, 2026
+
+- Add an optional personal DR bar for crowd control applied to your own character. Enable General > On yourself.
+- Keep personal evidence and state separate from enemies. Your spellbook, enemy category filters, and group/cast source settings do not suppress incoming CC.
+- Add independent icon size, lock, drag position, position sliders, reset, and a 20-second preview under Appearance > Your DR display. Icon styling follows the Target column.
+- Track readable player auras and fully readable native player DR updates, deduplicating both sources even when confirmation is delayed.
+- Respect client secret-value restrictions; do not infer personal DR from enemy casts or opaque events. Tracking starts when enabled and cannot reconstruct hidden or earlier applications.
+- Share the existing display timer and icon pool. Coalesce aura scans, skip aura work when disabled, and preserve combat/PvP visibility behavior.
+- Save the new controls in profiles without changing existing configurations; personal tracking is off by default.
+- Pass 12 enemy tracking scenarios against the 2.0.0 package, plus startup, rendering, profiles, visibility, four-way nameplate placement, and personal DR checks. In-game visual and client-restriction validation remains pending.
+
+## 2.0.0 - October 17, 2026
+
+- First stable-channel release of the 2.x series.
+- Add Left and Right nameplate positions alongside Above and Below, including profile persistence, edge-relative spacing, and matching preview bounds.
+- Group settings navigation into Configure and Manage & Help, keeping Profiles last.
+- Put size and placement first in Appearance, followed by icon style and categories.
+- Improve text contrast, heading spacing, column alignment, and target/nameplate column labels.
+- Widen the settings window and controls while retaining the existing screen-fit scaling.
+- Add visible input focus, familiar checkbox marks, and larger slider/reset hit areas.
+- Distinguish primary profile actions from secondary and reset/remove actions.
+- Simplify the tracking status panel and compact the persistent donation footer.
+- Reuse button borders for hover feedback instead of allocating a separate highlight frame per button. No new animation loops or dependencies.
+- Preserve tracking and existing settings; extend nameplate placement without changing profile operations or tracking behavior.
+- Release checks cover source review, version consistency, ZIP content integrity, and focused checks for all four nameplate positions, offset extremes, preview bounds, profile round-trips, and selector actions. No build or lint was run; in-game visual validation remains pending.
+
 ## 2.0.0-beta.11 - October 17, 2026
 
 - Move Profiles to the last position in the sidebar.

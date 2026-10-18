@@ -651,6 +651,8 @@ local function PlaceRow(row, plate)
         and row.offsetX == db.plateX and row.offsetY == db.plateY then return end
     row:ClearAllPoints()
     if db.plateAnchor == "TOP" then row:SetPoint("BOTTOM", plate, "TOP", db.plateX, db.plateOffset + db.plateY)
+    elseif db.plateAnchor == "LEFT" then row:SetPoint("RIGHT", plate, "LEFT", -db.plateOffset + db.plateX, db.plateY)
+    elseif db.plateAnchor == "RIGHT" then row:SetPoint("LEFT", plate, "RIGHT", db.plateOffset + db.plateX, db.plateY)
     else row:SetPoint("TOP", plate, "BOTTOM", db.plateX, -db.plateOffset + db.plateY) end
     row.anchorPlate, row.anchor, row.offset = plate, db.plateAnchor, db.plateOffset
     row.offsetX, row.offsetY = db.plateX, db.plateY
@@ -707,13 +709,15 @@ function Refresh()
     local now = GetTime()
     if not ns.db.enabled then
         target:Hide()
+        if ns.RefreshPlayerDisplay then ns.RefreshPlayerDisplay(now) end
         RefreshPlates(now)
         if driverRunning then driver:SetScript("OnUpdate", nil); driverRunning = false end
         return
     end
     local shown = RefreshTarget(now)
     local plateShown = RefreshPlates(now)
-    local live = shown or plateShown or (ns.VisibilityAllowed() and ns.tracker:HasLive(now)) or now < previewUntil
+    local playerShown = ns.RefreshPlayerDisplay and ns.RefreshPlayerDisplay(now)
+    local live = shown or plateShown or playerShown or (ns.VisibilityAllowed() and ns.tracker:HasLive(now)) or now < previewUntil
     if not live then ns.tracker:Prune(now) end
     -- Timers tick only while something is on screen or still counting down.
     live = not not live
@@ -743,6 +747,7 @@ function ns.Preview(seconds)
 end
 
 function ns.FinishDisplayInteraction()
+    if ns.FinishPlayerInteraction then ns.FinishPlayerInteraction() end
     if not target then return end
     StopMove()
     if target.grip.drag then StopGrip(target.grip) end
@@ -761,6 +766,7 @@ function ns.StartDisplay()
         if target.grip.drag then StopGrip(target.grip) end
     end)
     CreateTarget()
+    if ns.CreatePlayerDisplay then ns.CreatePlayerDisplay() end
     ns.OnSettingChanged(function(key)
         if key == "position" or key == "x" or key == "y" then ns.PositionTarget() end
         ns.RequestRefresh()

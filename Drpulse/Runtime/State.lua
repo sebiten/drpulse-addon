@@ -1,7 +1,7 @@
 -- Adapted from Forever DR Store.lua (MIT, Copyright 2026 Tarolg).
 -- Drpulse integration and visual adaptations: Copyright 2026 Joaqoz.
 local _, ns = ...
-ns.VERSION = "2.0.0-beta.11"
+ns.VERSION = "2.1.0"
 ns.SCHEMA = 1
 
 -- Display order. Keys are the names of Enum.SpellDiminishCategory fields; the
@@ -45,6 +45,7 @@ local sources = { native = true, auras = true, casts = true, group = true, feedb
 ns.SOURCE_KEYS = sources
 local defaults = {
     enabled = true, target = true, nameplates = true, npcs = false, locked = true,
+    player = false, playerLocked = true, playerSize = 30, playerX = 0, playerY = -220,
     x = 0, y = -150, filter = "mine", items = true, resetTime = 18,
     iconSize = 30, plateSize = 20, plateOffset = 4, plateAnchor = "TOP", plateX = 0, plateY = 0,
     font = "default",
@@ -56,10 +57,11 @@ local defaults = {
 -- Options with a fixed range or value set. Colors are fixed by meaning.
 local rules = {
     x = { -3000, 3000 }, y = { -3000, 3000 }, resetTime = { 10, 30 },
+    playerX = { -3000, 3000 }, playerY = { -3000, 3000 }, playerSize = { 16, 64 },
     iconSize = { 16, 64 }, plateSize = { 12, 40 }, plateOffset = { -40, 60 },
     plateX = { -300, 300 }, plateY = { -300, 300 },
     font = { default = true, friz = true, arial = true, morpheus = true, skurri = true },
-    filter = { mine = true, all = true }, plateAnchor = { TOP = true, BOTTOM = true },
+    filter = { mine = true, all = true }, plateAnchor = { TOP = true, BOTTOM = true, LEFT = true, RIGHT = true },
     stackStyle = { pips = true, number = true, next = true }, iconSource = { spell = true, category = true },
 }
 local plateStyleKeys = { plateFont = "font", plateStackStyle = "stackStyle", plateTimer = "timer", plateSwipe = "swipe", plateIconSource = "iconSource" }
@@ -273,7 +275,7 @@ function ns.Learned(id) return ns.db and ns.db.learned[id] end
 
 function ns.ResetDisplaySettings()
     if not ns.db then return end
-    for _, key in ipairs({ "iconSize", "plateSize", "plateOffset", "plateAnchor", "plateX", "plateY", "font", "stackStyle", "timer", "swipe", "iconSource" }) do
+    for _, key in ipairs({ "iconSize", "plateSize", "plateOffset", "plateAnchor", "plateX", "plateY", "playerSize", "font", "stackStyle", "timer", "swipe", "iconSource" }) do
         ns.db[key] = defaults[key]
     end
     for key in pairs(plateStyleKeys) do ns.db[key] = defaults[key] end

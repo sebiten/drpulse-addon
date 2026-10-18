@@ -548,6 +548,7 @@ end
 
 function ns.ClearTracking()
     ns.tracker:Clear()
+    if ns.ClearPlayerTracking then ns.ClearPlayerTracking() end
     for _, p in ipairs(pending) do p.done = true end
     pending, sent, auraUnits, nativeGuids, ns.secretImmune = {}, {}, {}, {}, {}
     for unit in pairs(watchers) do QueueScan(unit) end

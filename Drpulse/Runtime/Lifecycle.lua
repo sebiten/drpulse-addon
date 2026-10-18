@@ -80,6 +80,7 @@ events:SetScript("OnEvent", function(self, event, name)
         if paused or not ns.db then return end
         ns.StartProfiles()
         ns.StartVisibility()
+        ns.StartPlayerTracking()
         ns.StartDisplay()
         ns.StartSources()
         ns.BuildSettings()

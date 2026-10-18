@@ -14,15 +14,14 @@ local backdrop = {
     bgFile = WHITE, edgeFile = WHITE,
     edgeSize = 1, insets = { left = 1, right = 1, top = 1, bottom = 1 },
 }
-local edgeOnly = { edgeFile = WHITE, edgeSize = 1 }
 local GOLD = { 0.38, 0.85, 1.00 }
-local GREY = { 0.55, 0.55, 0.58 }
-local GREY_TEXT = "|cff8c8c94"
+local GREY = { 0.62, 0.69, 0.74 }
+local GREY_TEXT = "|cff9eb0bd"
 local AMBER_TEXT = "|cffff9f1a"
 local GREEN_TEXT = "|cff80ff80"
-local ROW = 36
-local NAME_X, NAME_W = 14, 196
-local C1, C2, CW = 216, 372, 150
+local ROW = 38
+local NAME_X, NAME_W = 14, 212
+local C1, C2, CW = 240, 410, 164
 local FULL = C2 + CW - NAME_X
 -- A read-out from the first control column to the right edge.
 local WIDE = FULL - (C1 - NAME_X) - 4
@@ -34,8 +33,8 @@ local SECTION_LABELS = {
     tools = "Tools", guide = "Guide", profiles = "Profiles",
 }
 local SECTION_HINTS = {
-    general = "Choose what to track", appearance = "Make it your own",
-    detection = "Fine-tune tracking", tools = "Manage and troubleshoot", guide = "Controls and shortcuts",
+    general = "Visibility and filters", appearance = "Size, style and categories",
+    detection = "Tracking sources", tools = "Spells and diagnostics", guide = "Controls and shortcuts",
     profiles = "Save, switch and share",
 }
 local SECTION_DETAILS = {
@@ -48,7 +47,7 @@ local SECTION_DETAILS = {
 }
 local SECTION_OF = {
     Displays = "general", ["What to show"] = "general",
-    Categories = "appearance", ["Size and placement"] = "appearance", ["Icon style"] = "appearance",
+    Categories = "appearance", ["Size and placement"] = "appearance", ["Icon style"] = "appearance", ["Your DR display"] = "appearance",
     ["Tracking sources"] = "detection", ["Blizzard data"] = "detection",
     Profiles = "profiles", ["New profile"] = "profiles", ["Share profiles"] = "profiles",
     ["Custom spells"] = "tools", Advanced = "tools", Diagnostics = "tools",
@@ -57,7 +56,7 @@ local SECTION_OF = {
 
 -- Value buttons: the choices in order, and their labels.
 local CHOICES = {
-    plateAnchor = { "TOP", "BOTTOM" },
+    plateAnchor = { "TOP", "BOTTOM", "LEFT", "RIGHT" },
     font = { "default", "friz", "arial", "morpheus", "skurri" },
     stackStyle = { "pips", "number", "next" },
     iconSource = { "spell", "category" },
@@ -65,6 +64,7 @@ local CHOICES = {
 local MODES = { "auto", "always", "never" }
 CHOICES.plateFont, CHOICES.plateStackStyle, CHOICES.plateIconSource = CHOICES.font, CHOICES.stackStyle, CHOICES.iconSource
 local MODE_LABELS = { auto = "Auto", always = "Always", never = "Never" }
+local ANCHOR_LABELS = { TOP = "Above", BOTTOM = "Below", LEFT = "Left", RIGHT = "Right" }
 
 -- Widgets -----------------------------------------------------------------------
 local function Text(parent, text, x, y, color, width)
@@ -96,17 +96,21 @@ end
 -- Controls use the addon's navy/cyan vocabulary rather than the inherited
 -- black strips from the reference settings page.
 local function Skin(control, hover)
-    control:SetBackdropColor(hover and 0.09 or 0.055, hover and 0.15 or 0.085, hover and 0.19 or 0.115, 1)
-    control:SetBackdropBorderColor(hover and 0.24 or 0.14, hover and 0.65 or 0.20, hover and 0.82 or 0.25, 1)
-    if not control.gold then
-        local gold = CreateFrame("Frame", nil, control, "BackdropTemplate")
-        gold:SetPoint("TOPLEFT", 1, -1)
-        gold:SetPoint("BOTTOMRIGHT", -1, 1)
-        gold:SetBackdrop(edgeOnly)
-        gold:SetBackdropBorderColor(0.38, 0.85, 1.00, 1)
-        control.gold = gold
+    if control.primary then
+        control:SetBackdropColor(hover and 0.09 or 0.055, hover and 0.28 or 0.20, hover and 0.36 or 0.27, 1)
+    else
+        control:SetBackdropColor(hover and 0.09 or 0.055, hover and 0.15 or 0.085, hover and 0.19 or 0.115, 1)
     end
-    control.gold:SetShown(hover)
+    control:SetBackdropBorderColor(hover and 0.38 or 0.23, hover and 0.85 or 0.32, hover and 1.00 or 0.39, 1)
+end
+-- Focus styling is event-driven and does not create extra frames.
+local function InputFocus(edit)
+    edit:HookScript("OnEditFocusGained", function(self)
+        self:SetBackdropBorderColor(GOLD[1], GOLD[2], GOLD[3], 1)
+    end)
+    edit:HookScript("OnEditFocusLost", function(self)
+        self:SetBackdropBorderColor(0.23, 0.32, 0.39, 1)
+    end)
 end
 local function Hover(control)
     Skin(control, false)
@@ -117,26 +121,32 @@ end
 local function Strip(parent, x, y, width, text)
     local strip = CreateFrame("Frame", nil, parent, "BackdropTemplate")
     strip:SetPoint("TOPLEFT", x, y)
-    strip:SetSize(width, 22)
+    strip:SetSize(width, 28)
     strip:EnableMouse(true)
     strip.label = strip:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     strip.label:SetPoint("LEFT", 2, 0)
     strip.label:SetPoint("RIGHT", -8, 0)
     strip.label:SetJustifyH("LEFT")
     strip.label:SetText(text)
+    strip.label:SetTextColor(0.86, 0.90, 0.93)
     return strip
 end
 local function ButtonWidget(parent, x, y, width, text)
     local button = CreateFrame("Button", nil, parent, "BackdropTemplate")
     button:SetPoint("TOPLEFT", x, y)
-    button:SetSize(width, 26)
+    button:SetSize(width, 28)
     button:SetBackdrop(backdrop)
     button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     button.label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     button.label:SetPoint("LEFT", 8, 0)
     button.label:SetPoint("RIGHT", -8, 0)
     button.label:SetText(text or "")
-    button.label:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
+    button.primary = text == "Create profile" or text == "Import as new"
+    if text == "Remove" or text == "Reset appearance" or text == "Clear tracked DR" or text == "Reset position" then
+        button.label:SetTextColor(0.96, 0.73, 0.52)
+    else
+        button.label:SetTextColor(0.86, 0.93, 0.97)
+    end
     Hover(button)
     return button
 end
@@ -177,7 +187,7 @@ ns.SettingsPages = pages
 
 local function NewPage(name)
     local panel = CreateFrame("Frame", "DrpulseSettingsWindow", UIParent, "BackdropTemplate")
-    panel:SetSize(820, 700)
+    panel:SetSize(860, 700)
     panel:SetPoint("CENTER")
     panel:SetFrameStrata("DIALOG")
     panel:SetFrameLevel(80)
@@ -209,12 +219,12 @@ local function NewPage(name)
     windowTitle:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
     local windowHint = titleBar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     windowHint:SetPoint("TOPLEFT", windowTitle, "BOTTOMLEFT", 0, -1)
-    windowHint:SetText("DIMINISHING RETURNS  /  FOREVER")
-    windowHint:SetTextColor(0.52, 0.62, 0.68)
+    windowHint:SetText("Settings  /  WoW: Forever")
+    windowHint:SetTextColor(GREY[1], GREY[2], GREY[3])
     local version = titleBar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     version:SetPoint("RIGHT", -54, 0)
     version:SetText("v" .. ns.VERSION)
-    version:SetTextColor(0.52, 0.62, 0.68)
+    version:SetTextColor(GREY[1], GREY[2], GREY[3])
     Tooltip(titleBar, "Drpulse settings", "Drag this header to move the window. Changes are saved automatically.")
     local close = CreateFrame("Button", nil, panel, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", -10, -17)
@@ -223,19 +233,27 @@ local function NewPage(name)
 
     local nav = CreateFrame("Frame", nil, panel, "BackdropTemplate")
     nav:SetPoint("TOPLEFT", 12, -82)
-    nav:SetPoint("BOTTOMLEFT", 12, 90)
+    nav:SetPoint("BOTTOMLEFT", 12, 78)
     nav:SetWidth(194)
     nav:SetBackdrop({ bgFile = WHITE })
     nav:SetBackdropColor(0.032, 0.046, 0.063, 1)
     page.nav = nav
-    Text(nav, "SETTINGS", 14, -14, GREY, 166)
+    Text(nav, "CONFIGURE", 18, -14, GREY, 166)
+    Text(nav, "MANAGE & HELP", 18, -242, GREY, 166)
     local sectionTitle = Text(panel, "", 232, -88, { 0.90, 0.95, 0.98 }, 540)
     sectionTitle:SetFontObject("GameFontNormalLarge")
-    local sectionDetail = Text(panel, "", 232, -114, { 0.58, 0.68, 0.74 }, 540)
+    local sectionDetail = Text(panel, "", 232, -114, GREY, 580)
+    local sectionRule = panel:CreateTexture(nil, "ARTWORK")
+    sectionRule:SetPoint("TOPLEFT", 232, -140)
+    sectionRule:SetPoint("TOPRIGHT", -34, -140)
+    sectionRule:SetHeight(1)
+    sectionRule:SetColorTexture(0.14, 0.22, 0.28, 1)
     local savedHint = nav:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    savedHint:SetPoint("BOTTOMLEFT", 14, 18)
-    savedHint:SetText("Changes save automatically")
-    savedHint:SetTextColor(0.48, 0.61, 0.66)
+    savedHint:SetPoint("BOTTOMLEFT", 18, 18)
+    savedHint:SetWidth(160)
+    savedHint:SetJustifyH("LEFT")
+    savedHint:SetText("Changes save automatically.\n\nEsc to close")
+    savedHint:SetTextColor(GREY[1], GREY[2], GREY[3])
 
     local function PaintTabs()
         sectionTitle:SetText(SECTION_LABELS[page.selectedSection])
@@ -245,23 +263,27 @@ local function NewPage(name)
             tab:SetBackdropColor(active and 0.065 or 0.032, active and 0.15 or 0.046, active and 0.20 or 0.063, 1)
             tab:SetBackdropBorderColor(active and 0.16 or 0.032, active and 0.40 or 0.046,
                 active and 0.50 or 0.063, 1)
-            tab.label:SetTextColor(active and 0.82 or 0.48, active and 0.94 or 0.58, active and 1.00 or 0.64)
-            tab.hint:SetTextColor(active and 0.64 or 0.43, active and 0.80 or 0.54, active and 0.85 or 0.61)
+            tab.label:SetTextColor(active and 0.90 or 0.75, active and 0.97 or 0.82, active and 1.00 or 0.87)
+            tab.hint:SetTextColor(active and 0.72 or GREY[1], active and 0.84 or GREY[2], active and 0.90 or GREY[3])
             tab.marker:SetShown(active)
         end
     end
 
     for index, key in ipairs(SECTION_ORDER) do
         local tab = CreateFrame("Button", nil, nav, "BackdropTemplate")
-        tab:SetPoint("TOPLEFT", 6, -38 - (index - 1) * 62)
+        tab:SetPoint("TOPLEFT", 6, -38 - (index - 1) * 64 - (index > 3 and 42 or 0))
         tab:SetSize(182, 56)
         tab:SetBackdrop(backdrop)
         tab.label = tab:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         tab.label:SetPoint("TOPLEFT", 12, -11)
+        tab.label:SetWidth(144)
+        tab.label:SetJustifyH("LEFT")
         tab.label:SetFontObject("GameFontNormal")
         tab.label:SetText(SECTION_LABELS[key])
         tab.hint = tab:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         tab.hint:SetPoint("TOPLEFT", 12, -32)
+        tab.hint:SetWidth(160)
+        tab.hint:SetJustifyH("LEFT")
         tab.hint:SetText(SECTION_HINTS[key])
         tab.marker = tab:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
         tab.marker:SetPoint("TOPRIGHT", -12, -11)
@@ -283,21 +305,21 @@ local function NewPage(name)
     PaintTabs()
 
     local scroll = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate")
-    scroll:SetPoint("TOPLEFT", 218, -148)
-    scroll:SetPoint("BOTTOMRIGHT", -34, 90)
+    scroll:SetPoint("TOPLEFT", 218, -152)
+    scroll:SetPoint("BOTTOMRIGHT", -34, 78)
     local body = CreateFrame("Frame", nil, scroll, "BackdropTemplate")
-    body:SetSize(566, 400)
+    body:SetSize(608, 400)
     scroll:SetScrollChild(body)
     scroll:SetScript("OnSizeChanged", function(_, width) body:SetWidth(width) end)
     page.body, page.scroll = body, scroll
 
     local support = CreateFrame("Frame", nil, panel, "BackdropTemplate")
-    support:SetPoint("BOTTOMLEFT", 18, 14)
-    support:SetPoint("BOTTOMRIGHT", -18, 14)
-    support:SetHeight(60)
+    support:SetPoint("BOTTOMLEFT", 18, 12)
+    support:SetPoint("BOTTOMRIGHT", -18, 12)
+    support:SetHeight(52)
     support:SetBackdrop(backdrop)
-    support:SetBackdropColor(0.055, 0.065, 0.075, 1)
-    support:SetBackdropBorderColor(0.25, 0.24, 0.19, 1)
+    support:SetBackdropColor(0.035, 0.05, 0.07, 1)
+    support:SetBackdropBorderColor(0.14, 0.22, 0.28, 1)
     local coin = support:CreateTexture(nil, "ARTWORK")
     coin:SetPoint("LEFT", 12, 0)
     coin:SetSize(22, 22)
@@ -306,20 +328,21 @@ local function NewPage(name)
     local supportTitle = support:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     supportTitle:SetPoint("TOPLEFT", coin, "TOPRIGHT", 9, 2)
     supportTitle:SetText("Support Drpulse")
-    supportTitle:SetTextColor(0.96, 0.80, 0.47)
+    supportTitle:SetTextColor(0.82, 0.88, 0.92)
     local supportHint = support:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     supportHint:SetPoint("TOPLEFT", supportTitle, "BOTTOMLEFT", 0, -2)
     supportHint:SetText("Optional one-time donation")
-    supportHint:SetTextColor(0.50, 0.58, 0.64)
+    supportHint:SetTextColor(GREY[1], GREY[2], GREY[3])
     local donation = CreateFrame("EditBox", nil, support, "BackdropTemplate")
     donation:SetPoint("RIGHT", -128, 0)
     donation:SetSize(310, 28)
     donation:SetBackdrop(backdrop)
     donation:SetBackdropColor(0.012, 0.026, 0.04, 1)
-    donation:SetBackdropBorderColor(0.10, 0.30, 0.40, 1)
+    donation:SetBackdropBorderColor(0.23, 0.32, 0.39, 1)
     donation:SetFontObject("GameFontHighlightSmall")
     donation:SetTextInsets(8, 8, 0, 0)
     donation:SetAutoFocus(false)
+    InputFocus(donation)
     donation:SetText(PAYPAL_URL)
     donation:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
     donation:SetScript("OnEnterPressed", function(self) self:HighlightText() end)
@@ -407,14 +430,14 @@ local function NewPage(name)
     -- screen, so headings describe state instead of duplicating navigation.
     function page.Group(title, open, summary, detail)
         group = nil
-        local frame, block = page.Block(58)
+        local frame, block = page.Block(64)
         local members = {}
         local section = SECTION_OF[title] or "general"
         block.section = section
         local this = { open = true, members = members, title = title, block = block, section = section }
         block.heading = this
         local toggle = CreateFrame("Frame", nil, frame, "BackdropTemplate")
-        toggle:SetPoint("TOPLEFT", NAME_X, -5)
+        toggle:SetPoint("TOPLEFT", NAME_X, -11)
         toggle:SetSize(FULL, 45)
         toggle:EnableMouse(false)
         local pulse = toggle:CreateTexture(nil, "ARTWORK")
@@ -422,7 +445,7 @@ local function NewPage(name)
         pulse:SetPoint("BOTTOMRIGHT", 0, 0)
         pulse:SetHeight(1)
         pulse:SetColorTexture(0.14, 0.22, 0.28, 1)
-        local heading = toggle:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        local heading = toggle:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
         heading:SetPoint("TOPLEFT", 2, -5)
         heading:SetText(title)
         local count = toggle:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -448,12 +471,12 @@ local function NewPage(name)
     function page.Help(summary, detail)
         assert(not (page.groups and page.groups[HELP]), "two How to use sections")
         group = nil
-        local frame, block = page.Block(58)
+        local frame, block = page.Block(64)
         block.section = "guide"
         local this = { title = HELP, open = true, always = true, members = {}, block = block, section = "guide" }
         block.heading = this
         local head = CreateFrame("Frame", nil, frame, "BackdropTemplate")
-        head:SetPoint("TOPLEFT", NAME_X, -5)
+        head:SetPoint("TOPLEFT", NAME_X, -11)
         head:SetSize(FULL, 45)
         head:EnableMouse(true)
         local pulse = head:CreateTexture(nil, "ARTWORK")
@@ -461,7 +484,7 @@ local function NewPage(name)
         pulse:SetPoint("BOTTOMRIGHT", 0, 0)
         pulse:SetHeight(1)
         pulse:SetColorTexture(0.14, 0.22, 0.28, 1)
-        local heading = head:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        local heading = head:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
         heading:SetPoint("TOPLEFT", 2, -5)
         heading:SetText(HELP)
         heading:SetTextColor(0.92, 0.92, 0.92)
@@ -483,9 +506,9 @@ local function NewPage(name)
     -- A small gold label inside How to use: what the notes after it are about.
     function page.Topic(title)
         assert(group and group.always, "a topic belongs under How to use")
-        local frame, block = page.Block(22)
+        local frame, block = page.Block(32)
         block.topic = title
-        Text(frame, title, NAME_X + 2, -8, GOLD, FULL - 4)
+        Text(frame, title, NAME_X + 2, -12, GOLD, FULL - 4)
         return block
     end
     -- One line of How to use: what, then how in grey; plain text, no strip,
@@ -493,7 +516,7 @@ local function NewPage(name)
     -- too long for its column wraps and the note grows to fit.
     function page.Note(label, how, detail)
         assert(group and group.always, "a note belongs under How to use")
-        local frame, block = page.Block(20)
+        local frame, block = page.Block(26)
         local note = { frame = frame, label = label, detail = detail, block = block }
         page.notes[#page.notes + 1] = note
         block.row = note
@@ -502,7 +525,7 @@ local function NewPage(name)
         note.how = Text(frame, how, C1 + 4, -4, GREY, WIDE)
         local tall = math.max(note.name:GetStringHeight() or 0, note.how:GetStringHeight() or 0)
         if tall > 14 then
-            block.height = math.ceil(tall) + 8
+            block.height = math.ceil(tall) + 12
             frame:SetHeight(block.height)
         end
         Tooltip(frame, label, detail)
@@ -530,8 +553,8 @@ local function NewPage(name)
         page.rows[label] = row
         block.row = row
         local separator = frame:CreateTexture(nil, "BACKGROUND")
-        separator:SetPoint("BOTTOMLEFT", NAME_X, 4)
-        separator:SetPoint("BOTTOMRIGHT", -24, 4)
+        separator:SetPoint("BOTTOMLEFT", NAME_X, 2)
+        separator:SetPoint("BOTTOMRIGHT", frame, "BOTTOMLEFT", C2 + CW, 2)
         separator:SetHeight(1)
         separator:SetColorTexture(0.10, 0.15, 0.19, 0.55)
         local point = part and function(over) page.Point(over and row or nil) end or nil
@@ -549,13 +572,14 @@ local function NewPage(name)
         function row:Input(x, width, maxLetters)
             local edit = Keep(CreateFrame("EditBox", nil, frame, "BackdropTemplate"))
             edit:SetPoint("TOPLEFT", x, -2)
-            edit:SetSize(width or CW, 26)
+            edit:SetSize(width or CW, 28)
             edit:SetBackdrop(backdrop)
             edit:SetBackdropColor(0.035, 0.055, 0.075, 1)
-            edit:SetBackdropBorderColor(0.14, 0.20, 0.25, 1)
+            edit:SetBackdropBorderColor(0.23, 0.32, 0.39, 1)
             edit:SetFontObject("GameFontHighlightSmall")
             edit:SetTextInsets(8, 8, 0, 0)
             edit:SetAutoFocus(false)
+            InputFocus(edit)
             edit:SetMaxLetters(maxLetters or 48)
             edit:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
             edit:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
@@ -571,10 +595,12 @@ local function NewPage(name)
             local indicator = button:CreateTexture(nil, "ARTWORK")
             indicator:SetPoint("LEFT", 10, 0)
             indicator:SetSize(14, 14)
-            local check = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+            local check = button:CreateTexture(nil, "OVERLAY")
             check:SetPoint("CENTER", indicator, "CENTER", 0, 0)
-            check:SetText("+")
-            check:SetTextColor(0.025, 0.06, 0.08)
+            check:SetSize(18, 18)
+            check:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
+            check:SetDesaturated(true)
+            check:SetVertexColor(0.025, 0.06, 0.08)
             button:SetScript("OnClick", function()
                 setting.set(not (setting.get() == true))
                 page.Refresh()
@@ -647,14 +673,14 @@ local function NewPage(name)
             local low, high = setting.limits[1], setting.limits[2]
             local default = type(setting.default) == "number" and setting.default or nil
             local control = Keep(CreateFrame("Slider", nil, frame))
-            control:SetPoint("TOPLEFT", x + 4, -4)
-            control:SetSize(width - (default and 74 or 56), 18)
+            control:SetPoint("TOPLEFT", x + 4, -2)
+            control:SetSize(width - (default and 80 or 56), 28)
             control:SetOrientation("HORIZONTAL")
             control:SetMinMaxValues(low, high)
             control:SetValueStep(step)
             control:SetObeyStepOnDrag(true)
             control:SetThumbTexture(WHITE)
-            control:GetThumbTexture():SetSize(8, 16)
+            control:GetThumbTexture():SetSize(10, 18)
             control:GetThumbTexture():SetColorTexture(GOLD[1], GOLD[2], GOLD[3], 1)
             local track = control:CreateTexture(nil, "BACKGROUND")
             track:SetPoint("LEFT")
@@ -669,10 +695,11 @@ local function NewPage(name)
             local reset, changed
             if default then
                 reset = CreateFrame("Button", nil, frame)
-                reset:SetSize(14, 14)
+                reset:SetSize(22, 28)
                 reset:SetPoint("LEFT", value, "RIGHT", 2, 0)
                 reset.art = reset:CreateTexture(nil, "ARTWORK")
-                reset.art:SetAllPoints()
+                reset.art:SetPoint("CENTER")
+                reset.art:SetSize(14, 14)
                 reset:SetScript("OnEnter", function(self)
                     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
                     GameTooltip:SetText("Reset to default")
@@ -717,7 +744,7 @@ local function NewPage(name)
         -- Short grey text after a single control (or in the control column when
         -- x is given: a read-only row, or a Mouse entry).
         function row:Status(fn, x, width)
-            local status = Text(frame, "", (x or C2) + 4, -7, GREY, width or (CW + 30))
+            local status = Text(frame, "", (x or C2) + 4, -8, GREY, width or (CW - 4))
             row.status = status
             page.OnRefresh(function() status:SetText(fn() or "") end)
             return status
@@ -800,7 +827,7 @@ local function NewPage(name)
     }
 
     panel:SetScript("OnShow", function()
-        local scale = math.min(1, (UIParent:GetWidth() - 32) / 820, (UIParent:GetHeight() - 32) / 700)
+        local scale = math.min(1, (UIParent:GetWidth() - 32) / 860, (UIParent:GetHeight() - 32) / 700)
         panel:SetScale(math.max(0.5, scale))
         page.Layout()
         page.Refresh()
@@ -1028,8 +1055,11 @@ local function DisplayPreview(page, key, unconfirmed)
 
     page.OnRefresh(function()
         local db = ns.db
-        local size, plateSize, offset, above = db.iconSize, db.plateSize, db.plateOffset, db.plateAnchor == "TOP"
-        offset = offset + (above and db.plateY or -db.plateY)
+        local size, plateSize, offset = db.iconSize, db.plateSize, db.plateOffset
+        local anchor = db.plateAnchor
+        local above, side = anchor == "TOP", anchor == "LEFT" or anchor == "RIGHT"
+        if side then offset = offset + (anchor == "RIGHT" and db.plateX or -db.plateX)
+        else offset = offset + (above and db.plateY or -db.plateY) end
         local spacing = ns.ICON_SPACING
         local top, x = preview.top, preview.left
         Draw(GetTime(), true)
@@ -1057,18 +1087,18 @@ local function DisplayPreview(page, key, unconfirmed)
         end
         -- A stand-in plate with its row hung as PlaceRow hangs a live one, in
         -- the column's units with the plate's top at 0.
-        local rowTop, rowBottom
-        if above then
-            rowBottom = -offset
-            rowTop = rowBottom - plateSize
-        else
-            rowTop = PLATE_H + offset
-            rowBottom = rowTop + plateSize
-        end
-        local first, last = math.min(0, rowTop), math.max(PLATE_H, rowBottom)
         local rowWidth = 3 * plateSize + 2 * spacing
-        local left = math.min(0, (PLATE_W - rowWidth) / 2 + db.plateX)
-        local right = math.max(PLATE_W, (PLATE_W + rowWidth) / 2 + db.plateX)
+        local rowTop, rowLeft
+        if side then
+            rowTop = (PLATE_H - plateSize) / 2 - db.plateY
+            rowLeft = anchor == "LEFT" and (-offset - rowWidth) or (PLATE_W + offset)
+        else
+            rowTop = above and (-offset - plateSize) or (PLATE_H + offset)
+            rowLeft = (PLATE_W - rowWidth) / 2 + db.plateX
+        end
+        local first, last = math.min(0, rowTop), math.max(PLATE_H, rowTop + plateSize)
+        local left = math.min(0, rowLeft)
+        local right = math.max(PLATE_W, rowLeft + rowWidth)
         width = right - left
         -- Keep extreme offsets inside the preview without changing saved values.
         local room = preview.left + preview.width - 12 - x
@@ -1090,8 +1120,14 @@ local function DisplayPreview(page, key, unconfirmed)
         ns.PlaceRow(plateRow, plate)
         gap:ClearAllPoints()
         if offset > 0 then
-            if above then gap:SetPoint("BOTTOM", plate, "TOP", 0, 0) else gap:SetPoint("TOP", plate, "BOTTOM", 0, 0) end
-            gap:SetSize(PLATE_W, offset)
+            if side then
+                if anchor == "LEFT" then gap:SetPoint("RIGHT", plate, "LEFT", 0, 0)
+                else gap:SetPoint("LEFT", plate, "RIGHT", 0, 0) end
+                gap:SetSize(offset, PLATE_H)
+            else
+                if above then gap:SetPoint("BOTTOM", plate, "TOP", 0, 0) else gap:SetPoint("TOP", plate, "BOTTOM", 0, 0) end
+                gap:SetSize(PLATE_W, offset)
+            end
             gap:Show()
         else
             gap:Hide()
@@ -1182,34 +1218,21 @@ end
 -- The page ---------------------------------------------------------------------------
 local function Build()
     local page = NewPage("Drpulse")
-    local header = page.Block(78)
+    local header = page.Block(66)
     local brand = CreateFrame("Frame", nil, header, "BackdropTemplate")
     brand:SetPoint("TOPLEFT", NAME_X, -7)
-    brand:SetSize(FULL, 62)
+    brand:SetSize(FULL, 54)
     brand:SetBackdrop(backdrop)
-    brand:SetBackdropColor(0.025, 0.085, 0.12, 1)
-    brand:SetBackdropBorderColor(0.10, 0.30, 0.40, 1)
-    local mark = brand:CreateTexture(nil, "ARTWORK")
-    mark:SetPoint("TOPLEFT", 0, 0)
-    mark:SetPoint("BOTTOMLEFT", 0, 0)
-    mark:SetWidth(3)
-    mark:SetColorTexture(GOLD[1], GOLD[2], GOLD[3], 1)
-    local title = brand:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    brand:SetBackdropColor(0.035, 0.055, 0.075, 1)
+    brand:SetBackdropBorderColor(0.14, 0.22, 0.28, 1)
+    local title = brand:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     title:SetPoint("TOPLEFT", 16, -10)
     title:SetText("TRACKING STATUS")
-    title:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
-    local version = brand:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    version:SetPoint("LEFT", title, "RIGHT", 9, 0)
-    version:SetText("v" .. ns.VERSION)
-    version:SetTextColor(GREY[1], GREY[2], GREY[3])
+    title:SetTextColor(0.86, 0.93, 0.97)
     local command = brand:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     command:SetPoint("TOPRIGHT", -14, -12)
     command:SetText("/drpulse")
     command:SetTextColor(0.72, 0.89, 0.96)
-    local purpose = brand:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    purpose:SetPoint("TOPLEFT", 16, -29)
-    purpose:SetText("Enemy diminishing returns control deck")
-    purpose:SetTextColor(0.67, 0.73, 0.78)
     local status = brand:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     status:SetPoint("BOTTOMLEFT", 16, 9)
     status:SetPoint("BOTTOMRIGHT", -14, 9)
@@ -1231,6 +1254,7 @@ local function Build()
         local where = {}
         if ns.db.target then where[#where + 1] = "target" end
         if ns.db.nameplates then where[#where + 1] = "nameplates" end
+        if ns.db.player then where[#where + 1] = "yourself" end
         return "On · " .. (#where > 0 and table.concat(where, ", ") or "no display")
             .. (ns.db.npcs and " · NPCs" or "") .. (ns.db.locked and "" or " · unlocked")
     end, "Where the DR icons show, and the target display's place.")
@@ -1238,8 +1262,10 @@ local function Build()
         :Toggle(C1, "enabled")
     page.Row("On your target", "Show your current enemy target's DR icons in a movable display.")
         :Toggle(C1, "target")
-    page.Row("On enemy nameplates", "Show DR icons above or below every visible enemy player's nameplate.")
+    page.Row("On enemy nameplates", "Show DR icons above, below, left or right of every visible enemy player's nameplate.")
         :Toggle(C1, "nameplates")
+    page.Row("On yourself", "Track incoming crowd control on your character in a separate movable bar. Includes categories you cannot apply. Configure it under Appearance > Your DR display. Off by default.")
+        :Toggle(C1, "player")
     page.Row("Only in combat", "Hide DR displays outside combat. Tracking continues. Unlocking the target display or starting a preview still lets you configure it.")
         :Toggle(C1, "combatOnly")
     page.Row("Only in PvP instances", "Show DR displays only inside battlegrounds and arenas. This excludes world PvP and duels. Combines with Only in combat; tracking continues while hidden.")
@@ -1262,50 +1288,12 @@ local function Build()
     page.Group("What to show", true, function()
         if ns.db.filter ~= "mine" then return "Every category" end
         return "Only CC you can apply" .. (ns.db.items and " · bag items count" or "")
-    end, "Which DR categories show. Each category's own choice is under Categories.")
+    end, "Which enemy DR categories show. Each category's own choice is under Categories. These filters do not hide your personal DR.")
     page.Row("Only CC I can apply", TIPS.filter)
         :Toggle(C1, { key = "filter", get = function() return ns.db.filter == "mine" end,
             set = function(value) ns.Set("filter", value and "mine" or "all") end })
     page.Row("Count CC items in bags", "Grenades, bombs, Net-o-Matic, Tidal Charm and similar items in your bags make their category yours.")
         :Toggle(C1, "items")
-
-    page.Group("Categories", false, function()
-        local shown, yours = 0, 0
-        for _, category in ipairs(ns.CATEGORIES) do
-            if ns.ShouldShow(category) then shown = shown + 1 end
-            if ns.mine[category] then yours = yours + 1 end
-        end
-        return shown .. " of " .. #ns.CATEGORIES .. " shown · " .. yours .. " yours"
-    end, "Auto, Always or Never for each DR category, and which ones you can apply now. A strip at the top shows every category's icon, the ones not shown greyed.")
-    CategoriesPreview(page)
-    page.Row("You can apply", "The categories your known spells, pet and (with Count CC items in bags) bag items can cause, as detected now.", nil, 36)
-        :Status(function()
-            local names = {}
-            for _, category in ipairs(ns.CATEGORIES) do
-                if ns.mine[category] then names[#names + 1] = ns.CATEGORY_LABELS[category] end
-            end
-            return #names > 0 and table.concat(names, ", ") or "none detected"
-        end, C1, WIDE)
-    for _, category in ipairs(ns.CATEGORIES) do
-        local label = ns.CATEGORY_LABELS[category]
-        local row = page.Row(label, "Auto follows Only CC I can apply. Always shows this category regardless; Never hides it.",
-            "category." .. category)
-        local icon = row.name:CreateTexture(nil, "ARTWORK")
-        icon:SetPoint("LEFT", 4, 0)
-        icon:SetSize(16, 16)
-        icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-        row.icon = icon
-        row.name.label:ClearAllPoints()
-        row.name.label:SetPoint("LEFT", 26, 0)
-        row.name.label:SetPoint("RIGHT", -8, 0)
-        row:Choice(C1, { key = "categories." .. category, options = MODES,
-            get = function() return ns.GetCategoryMode(category) end,
-            set = function(mode) ns.SetCategoryMode(category, mode) end }, MODE_LABELS)
-        row:Status(function()
-            return (ns.mine[category] and (GREEN_TEXT .. "yours|r  ") or "") .. (ns.ShouldShow(category) and "shown" or "hidden")
-        end)
-        page.OnRefresh(function() icon:SetTexture(ns.CategoryIcon(category)) end)
-    end
 
     local function Source(key)
         return { key = "sources." .. key, get = function() return ns.GetSource(key) end,
@@ -1361,21 +1349,39 @@ local function Build()
 
     page.Group("Size and placement", false, function()
         return "Target " .. ns.db.iconSize .. " px · plates " .. ns.db.plateSize .. " px "
-            .. (ns.db.plateAnchor == "BOTTOM" and "below" or "above")
+            .. (ANCHOR_LABELS[ns.db.plateAnchor] or "Above"):lower()
     end, "How large the icons are, and where they sit on nameplates, with a preview at the top that follows every change here.")
     DisplayPreview(page, "size")
     page.Row("Target icon size", TIPS.iconSize, "target")
         :Slider(C1, "iconSize", 1, " px")
     page.Row("Nameplate icon size", "Size of the icons on enemy nameplates.", "platerow")
         :Slider(C1, "plateSize", 1, " px")
-    page.Row("Nameplate offset", "Distance between the nameplate and its DR icons.", "plategap")
+    page.Row("Nameplate offset", "Distance from the selected edge of the nameplate to its DR icons. Positive values move the icons away from the nameplate.", "plategap")
         :Slider(C1, "plateOffset", 1, " px")
-    page.Row("Nameplate icons", "Place nameplate DR icons above or below the nameplate.", "platerow")
-        :Choice(C1, "plateAnchor", { TOP = "Above", BOTTOM = "Below" })
+    page.Row("Nameplate icons", "Place DR icons above, below, left or right of the nameplate. Use the offsets to fine-tune their position.", "platerow")
+        :Choice(C1, "plateAnchor", ANCHOR_LABELS)
     page.Row("Nameplate horizontal", "Move all nameplate DR icons left (negative) or right (positive), relative to their nameplate.", "platerow")
         :Slider(C1, "plateX", 1, " px")
-    page.Row("Nameplate vertical", "Move all nameplate DR icons down (negative) or up (positive), in addition to the above/below separation.", "platerow")
+    page.Row("Nameplate vertical", "Move all nameplate DR icons down (negative) or up (positive), relative to the selected position.", "platerow")
         :Slider(C1, "plateY", 1, " px")
+
+    page.Group("Your DR display", false, function()
+        return (ns.db.player and "On" or "Off · enable On yourself in General")
+            .. " · " .. ns.db.playerSize .. " px" .. (ns.db.playerLocked and " · locked" or " · unlocked")
+    end, "A separate bar for CC applied to you. Uses the Target icon style below, with its own size, position and lock.")
+    local personalNote = page.Block(40)
+    Text(personalNote, "Incoming CC, independent of enemy filters. Uses Target icon style.\nTracks readable auras and native DR data; restricted effects may be unavailable.", NAME_X + 2, -3, GREY, FULL - 4)
+    page.Row("Your icon size", "Size of your personal DR icons. Font, stack style, icon source, timer and swipe follow the Target column under Icon style.")
+        :Slider(C1, "playerSize", 1, " px")
+    page.Row("Lock your display", "Turn off to show sample icons and a draggable Your DR header. Drag outside combat; right-click the header to lock. Target display locking is independent.")
+        :Toggle(C1, "playerLocked")
+    page.Row("Your display horizontal", "Move your personal DR bar left (negative) or right (positive) from the screen center.")
+        :Slider(C1, "playerX", 1, " px", WIDE)
+    page.Row("Your display vertical", "Move your personal DR bar down (negative) or up (positive) from the screen center.")
+        :Slider(C1, "playerY", 1, " px", WIDE)
+    local personalActions = page.Row("Your display", "Preview shows samples for 20 seconds without adding DR states. Reset position affects only your personal bar.")
+    personalActions:Button(C1, "Preview your DR", function() ns.PreviewPlayer() end)
+    personalActions:Button(C2, "Reset position", TwoClicks("Reset position", function() ns.ResetPlayerPosition() end))
 
     page.Group("Icon style", false, function()
         return (STACK_LABELS[ns.db.stackStyle] or tostring(ns.db.stackStyle)) .. " · "
@@ -1384,8 +1390,14 @@ local function Build()
     end, "What each icon shows: its stacks, its picture, the reset timer and the swipe, with a preview at the top that follows every change here.")
     DisplayPreview(page, "style", true)
     local columns = page.Row("Configure independently", "The left column changes the target display; the right column changes enemy nameplates.")
-    columns:Status(function() return "TARGET" end, C1, CW)
-    columns:Status(function() return "NAMEPLATES" end, C2, CW)
+    local targetColumn = columns:Status(function() return "TARGET" end, C1, CW - 4)
+    local plateColumn = columns:Status(function() return "NAMEPLATES" end, C2, CW - 4)
+    targetColumn:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
+    plateColumn:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
+    local columnBackground = columns.frame:CreateTexture(nil, "BACKGROUND")
+    columnBackground:SetPoint("TOPLEFT", C1, 0)
+    columnBackground:SetPoint("BOTTOMRIGHT", columns.frame, "BOTTOMLEFT", C2 + CW, 6)
+    columnBackground:SetColorTexture(0.055, 0.10, 0.135, 1)
     local fonts = page.Row("Icon font", "Choose fonts independently for the target and nameplates. Unavailable fonts fall back to the client's default.", "font")
     fonts:Choice(C1, "font", ns.FONT_LABELS)
     fonts:Choice(C2, "plateFont", ns.FONT_LABELS)
@@ -1401,6 +1413,44 @@ local function Build()
     local swipes = page.Row("Countdown swipe", TIPS.swipe, "swipe")
     swipes:Toggle(C1, "swipe")
     swipes:Toggle(C2, "plateSwipe")
+
+    page.Group("Categories", false, function()
+        local shown, yours = 0, 0
+        for _, category in ipairs(ns.CATEGORIES) do
+            if ns.ShouldShow(category) then shown = shown + 1 end
+            if ns.mine[category] then yours = yours + 1 end
+        end
+        return shown .. " of " .. #ns.CATEGORIES .. " shown · " .. yours .. " yours"
+    end, "Auto, Always or Never for each DR category, and which ones you can apply now. A strip at the top shows every category's icon, the ones not shown greyed.")
+    CategoriesPreview(page)
+    page.Row("You can apply", "The categories your known spells, pet and (with Count CC items in bags) bag items can cause, as detected now.", nil, 36)
+        :Status(function()
+            local names = {}
+            for _, category in ipairs(ns.CATEGORIES) do
+                if ns.mine[category] then names[#names + 1] = ns.CATEGORY_LABELS[category] end
+            end
+            return #names > 0 and table.concat(names, ", ") or "none detected"
+        end, C1, WIDE)
+    for _, category in ipairs(ns.CATEGORIES) do
+        local label = ns.CATEGORY_LABELS[category]
+        local row = page.Row(label, "Auto follows Only CC I can apply. Always shows this category regardless; Never hides it.",
+            "category." .. category)
+        local icon = row.name:CreateTexture(nil, "ARTWORK")
+        icon:SetPoint("LEFT", 4, 0)
+        icon:SetSize(16, 16)
+        icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        row.icon = icon
+        row.name.label:ClearAllPoints()
+        row.name.label:SetPoint("LEFT", 26, 0)
+        row.name.label:SetPoint("RIGHT", -8, 0)
+        row:Choice(C1, { key = "categories." .. category, options = MODES,
+            get = function() return ns.GetCategoryMode(category) end,
+            set = function(mode) ns.SetCategoryMode(category, mode) end }, MODE_LABELS)
+        row:Status(function()
+            return (ns.mine[category] and (GREEN_TEXT .. "yours|r  ") or "") .. (ns.ShouldShow(category) and "shown" or "hidden")
+        end)
+        page.OnRefresh(function() icon:SetTexture(ns.CategoryIcon(category)) end)
+    end
 
     page.Group("Profiles", false, function() return "Saved setups for your characters" end,
         "Profiles are shared across this account. Each character remembers its selection. Copy a profile to customize it independently.")
@@ -1484,13 +1534,14 @@ local function Build()
     local spell = page.Row("Spell and category", "Add or correct a spell's category, for Forever changes or missing effects: the numeric spell ID of the CC effect, as shown by the aura, and the category to assign.")
     local edit = CreateFrame("EditBox", nil, spell.frame, "BackdropTemplate")
     edit:SetPoint("TOPLEFT", C1, -2)
-    edit:SetSize(CW, 22)
+    edit:SetSize(CW, 28)
     edit:SetBackdrop(backdrop)
-    edit:SetBackdropColor(0.04, 0.04, 0.05, 1)
-    edit:SetBackdropBorderColor(0, 0, 0, 1)
+    edit:SetBackdropColor(0.035, 0.055, 0.075, 1)
+    edit:SetBackdropBorderColor(0.23, 0.32, 0.39, 1)
     edit:SetFontObject("GameFontHighlightSmall")
     edit:SetTextInsets(8, 8, 0, 0)
     edit:SetAutoFocus(false)
+    InputFocus(edit)
     edit:SetNumeric(true)
     edit:SetMaxLetters(8)
     edit:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)

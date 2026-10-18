@@ -4,7 +4,7 @@
 
 DRPulse is a lightweight and customizable diminishing returns tracker built specifically for **World of Warcraft: Forever**.
 
-It tracks crowd-control diminishing returns on your current target and enemy nameplates, showing reset timers, immunity, and the expected duration of the next crowd-control effect.
+It tracks crowd-control diminishing returns on your current target, enemy nameplates, and optionally your own character, showing reset timers, immunity, and the expected duration of the next crowd-control effect.
 
 DRPulse combines Blizzard's native DR feed with readable auras, your casts, pet and group casts, and combat feedback. When the game does not expose enough information to confirm an effect, DRPulse marks the result as estimated instead of presenting it as certain.
 
@@ -14,15 +14,20 @@ DRPulse combines Blizzard's native DR feed with readable auras, your casts, pet 
 
 ---
 
-## Version 2.0.0-beta.11
+## Version 2.1.0
 
-This is a functional public beta for WoW: Forever.
+Adds an optional personal DR bar to the stable Drpulse 2.x series for WoW: Forever.
+
+Enable **General → On yourself**, then configure **Appearance → Your DR display**. The personal bar has its own size, lock, drag position, and preview; its icon style follows the Target column. It tracks readable incoming CC independently of enemy filters. Client-restricted effects and applications before enabling or reloading may be unavailable.
 
 - Standalone movable settings window.
-- Drpulse-specific interface organized into General, Appearance, Detection, Tools, and Guide.
+- Refined settings organized into General, Appearance, Detection, Tools, Guide, and Profiles.
+- Clearer navigation groups, wider control columns, improved contrast, and visible input focus.
+- Appearance opens with size and placement, followed by icon style and categories.
+- Lightweight hover feedback using existing button borders, with no added animation loops.
 - Target and enemy nameplate DR displays.
 - Five icon font options with live previews.
-- Horizontal and vertical nameplate icon offsets, alongside above/below placement.
+- Above, below, left, or right nameplate icon placement, with edge separation and horizontal/vertical offsets.
 - Native, aura, cast, pet, group, and combat-feedback tracking sources.
 - Optional PayPal support link available directly in settings.
 - All commands and documentation standardized on `/drpulse`.
