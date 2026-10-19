@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.1.0 - October 17, 2026
+## 2.1.0 - stable - October 17, 2026
 
 - Add an optional personal DR bar for crowd control applied to your own character. Enable General > On yourself.
 - Keep personal evidence and state separate from enemies. Your spellbook, enemy category filters, and group/cast source settings do not suppress incoming CC.
@@ -11,7 +11,7 @@
 - Save the new controls in profiles without changing existing configurations; personal tracking is off by default.
 - Pass 12 enemy tracking scenarios against the 2.0.0 package, plus startup, rendering, profiles, visibility, four-way nameplate placement, and personal DR checks. In-game visual and client-restriction validation remains pending.
 
-## 2.0.0 - October 17, 2026
+## 2.0.0 - stable -  October 17, 2026
 
 - First stable-channel release of the 2.x series.
 - Add Left and Right nameplate positions alongside Above and Below, including profile persistence, edge-relative spacing, and matching preview bounds.
