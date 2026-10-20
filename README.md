@@ -43,12 +43,4 @@ The new runtime uses `DrpulseV2DB`. Existing `DrpulseDB` and `DRiftDB` data rema
 - `/drpulse reset`: restore the target display position.
 - Minimap: left-click for settings, right-click to lock, drag to reposition.
 
-## Validation
-
-Twelve scenarios run against both the original ZIP and this adaptation: unsupported feed, repeated events, resistances, observable auras, pets/group, unconfirmed area effects, opaque events, secret identity, full names, expiry, duplicates, and restricted timing data.
-
-The 2.1.0 checks compare 12 enemy scenarios with the packaged 2.0.0 runtime, execute both TOC module sets, and cover startup, rendering, profile sharing, visibility, and four-way nameplate placement. Personal checks cover aura/native deduplication, delayed confirmations, early ends, reset expiry, restricted fields, death, enemy isolation, visibility, preview, dragging, profile persistence, and disabled-state work. Package contents are verified byte-for-byte. Native frames are mocked, so these checks do not validate pixels, taint, or real-client event availability. In-game validation remains pending.
-
-Run `node scripts/verify-release.mts releases/Drpulse-2.0.0-Forever.zip <fengari-module-path>` to repeat the checks. The personal aura adapter respects the access restrictions documented in Blizzard's [generated UnitAuras API](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/UnitAuraDocumentation.lua).
-
 `Core.spec.lua` and `UI.spec.lua` cover the historical 1.x implementation, which remains in the repository but is not loaded or distributed with this release.
