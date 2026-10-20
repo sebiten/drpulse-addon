@@ -52,7 +52,3 @@ The 2.1.0 checks compare 12 enemy scenarios with the packaged 2.0.0 runtime, exe
 Run `node scripts/verify-release.mts releases/Drpulse-2.0.0-Forever.zip <fengari-module-path>` to repeat the checks. The personal aura adapter respects the access restrictions documented in Blizzard's [generated UnitAuras API](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/UnitAuraDocumentation.lua).
 
 `Core.spec.lua` and `UI.spec.lua` cover the historical 1.x implementation, which remains in the repository but is not loaded or distributed with this release.
-
-## License
-
-MIT. `THIRD-PARTY-LICENSE.txt` preserves Tarolg's complete notice. Adapted modules include attribution. Reproducible import logic is in `scripts/import-reference.mts`; Drpulse-specific integrations are in `Runtime/Integration.lua`.
